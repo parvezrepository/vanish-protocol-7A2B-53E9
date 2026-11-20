@@ -47,5 +47,8 @@ We formally differentiate two expiration phases:
     \item \textbf{Physical Cleanup Delay ($\Delta t$):} The latency between deadline arrival and physical block erasure ($\Delta t = t_{\text{purge}} - t_{\text{exp}}$). Across 500 test deadlines under deep Doze, measured cleanup delays yielded a median of $0.38$\,s, a mean of $0.42$\,s, a 95th percentile of $1.15$\,s, and a maximum delay of $2.10$\,s.
 \end{enumerate}
 
+\subsubsection{Deployment Scope: Enterprise MDM and Custom ROMs}
+Standard consumer applications on Google Mobile Services (GMS) devices cannot inject services into \texttt{system\_server} or acquire system UID privileges. Accordingly, VANISH's AOSP architecture is specifically designed for: (i) Enterprise Mobile Device Management (MDM) appliances operating in Device Owner mode with organizational signing keys, (ii) security-hardened OEM distributions (e.g., GrapheneOS, CalyxOS, Samsung Knox extensions), and (iii) future upstream platform-level OS standardization.
+
 \subsubsection{SELinux Access Control}
 To enforce least privilege, we authored policy \texttt{vanish.te}~\cite{smalley2013security}, permitting \texttt{system\_server} to modify files only within download directories (\texttt{media\_rw\_data\_file}) while strictly forbidding deletion in system partitions (\texttt{neverallow system\_server system\_file:file unlink}).

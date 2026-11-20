@@ -18,6 +18,21 @@ matplotlib.use("Agg")  # Non-interactive backend for headless figure generation
 import matplotlib.pyplot as plt
 import numpy as np
 
+# IEEE Publication Typography & Visual Settings
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["DejaVu Serif", "Times New Roman", "Computer Modern Roman"],
+    "font.size": 10,
+    "axes.labelsize": 11,
+    "axes.labelweight": "bold",
+    "axes.titlesize": 11,
+    "axes.titleweight": "bold",
+    "xtick.labelsize": 9.5,
+    "ytick.labelsize": 9.5,
+    "legend.fontsize": 9,
+    "figure.titlesize": 12,
+})
+
 from vanish.constants import ExpiryPolicy
 from vanish.container import VanishContainer
 from vanish.crypto import compute_sha256, generate_ed25519_keypair
@@ -170,49 +185,51 @@ def benchmark_verification_breakdown() -> dict[str, float]:
 
 
 def plot_latency_vs_size(data: dict[str, list[float]], output_prefix: Path) -> None:
-    """Generate publication-ready plot of latency vs payload size."""
-    plt.figure(figsize=(7, 4.5))
+    """Generate publication-grade plot of latency vs payload size."""
+    fig, ax = plt.subplots(figsize=(6.8, 4.2), dpi=300)
     sizes = data["sizes_kb"]
 
-    plt.plot(sizes, data["pack_unencrypted_ms"], "o-", label="Pack (Unencrypted)", color="#1f77b4", linewidth=2)
-    plt.plot(sizes, data["pack_encrypted_ms"], "s--", label="Pack (AES-256-GCM)", color="#d62728", linewidth=2)
-    plt.plot(sizes, data["unpack_ms"], "^-.", label="Unpack & Verify", color="#2ca02c", linewidth=2)
+    ax.plot(sizes, data["pack_unencrypted_ms"], "o-", label="Pack (Unencrypted)", color="#1a5276", linewidth=2.2, markersize=6.5)
+    ax.plot(sizes, data["pack_encrypted_ms"], "s--", label="Pack (AES-256-GCM)", color="#922b21", linewidth=2.2, markersize=6.5)
+    ax.plot(sizes, data["unpack_ms"], "^-.", label="Unpack & Verify", color="#196f3d", linewidth=2.2, markersize=7)
 
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.xlabel("Payload Size (KB)", fontsize=11, fontweight="bold")
-    plt.ylabel("Execution Latency (ms)", fontsize=11, fontweight="bold")
-    plt.title("VANISH Processing Latency vs Payload Size", fontsize=12, fontweight="bold")
-    plt.grid(True, which="both", ls="--", alpha=0.5)
-    plt.legend(frameon=True, fontsize=10)
-    plt.tight_layout()
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("Payload Size (KB)", fontsize=11, fontweight="bold")
+    ax.set_ylabel("Execution Latency (ms)", fontsize=11, fontweight="bold")
+    ax.set_title("VANISH Processing Latency vs Payload Size", fontsize=11.5, fontweight="bold", pad=8)
+    ax.grid(True, which="major", ls="-", color="#e0e0e0", alpha=0.8)
+    ax.grid(True, which="minor", ls=":", color="#f0f0f0", alpha=0.6)
+    ax.legend(frameon=True, facecolor="white", edgecolor="#cccccc", framealpha=0.95, fontsize=9.5)
+    fig.tight_layout()
 
-    plt.savefig(output_prefix.with_suffix(".png"), dpi=300)
-    plt.savefig(output_prefix.with_suffix(".pdf"))
+    fig.savefig(output_prefix.with_suffix(".png"), dpi=300)
+    fig.savefig(output_prefix.with_suffix(".pdf"))
     plt.close()
 
 
 def plot_verification_breakdown(breakdown: dict[str, float], output_prefix: Path) -> None:
-    """Generate bar chart breakdown of verification latency."""
-    plt.figure(figsize=(6.5, 4))
+    """Generate publication-grade bar chart breakdown of verification latency."""
+    fig, ax = plt.subplots(figsize=(6.2, 3.8), dpi=300)
     stages = list(breakdown.keys())
     times = list(breakdown.values())
-    colors = ["#4e79a7", "#f28e2c", "#e15759", "#76b7b2"]
+    colors = ["#1f4e78", "#2e7d32", "#c0392b", "#d35400"]
 
-    bars = plt.bar(stages, times, color=colors, width=0.5, edgecolor="black", linewidth=0.8)
-    plt.ylabel("Latency (ms) for 1MB Container", fontsize=11, fontweight="bold")
-    plt.title("Sub-millisecond Verification Latency Breakdown", fontsize=12, fontweight="bold")
-    plt.grid(axis="y", ls="--", alpha=0.5)
+    bars = ax.bar(stages, times, color=colors, width=0.48, edgecolor="#2c3e50", linewidth=1.0)
+    ax.set_ylabel("Latency (ms) for 1MB Container", fontsize=11, fontweight="bold")
+    ax.set_title("Sub-millisecond Verification Breakdown (1MB)", fontsize=11.5, fontweight="bold", pad=8)
+    ax.grid(axis="y", ls="--", color="#dcdcdc", alpha=0.8)
 
     for bar in bars:
         yval = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width() / 2.0, yval + 0.02, f"{yval:.2f} ms", ha="center", va="bottom", fontsize=9)
+        label_text = f"{yval:.2f} ms" if yval >= 0.01 else "<0.01 ms"
+        ax.text(bar.get_x() + bar.get_width() / 2.0, yval + 0.02, label_text, ha="center", va="bottom", fontsize=9.5, fontweight="bold")
 
-    plt.ylim(0, max(times) * 1.25)
-    plt.tight_layout()
+    ax.set_ylim(0, max(times) * 1.25)
+    fig.tight_layout()
 
-    plt.savefig(output_prefix.with_suffix(".png"), dpi=300)
-    plt.savefig(output_prefix.with_suffix(".pdf"))
+    fig.savefig(output_prefix.with_suffix(".png"), dpi=300)
+    fig.savefig(output_prefix.with_suffix(".pdf"))
     plt.close()
 
 

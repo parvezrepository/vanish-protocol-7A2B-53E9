@@ -6,6 +6,9 @@ On modern solid-state drives (SSDs) and mobile flash storage (eMMC and UFS), int
 
 To defend against privileged local adversaries manipulating system clocks, deployments can anchor time checkpoints to non-volatile hardware monotonic counters—such as the Replay Protected Memory Block (RPMB) in mobile UFS storage or TPM 2.0 NV counters~\cite{tpm20specification}—coupled with authenticated network time (NTS~\cite{rfc8915nts} and Roughtime~\cite{roughtime2018}).
 
+\subsection{Limitations and Future Work}
+While VANISH prevents offline accumulation and storage remanence, it cannot prevent an authorized user from capturing plaintext or photographing a display while the file is currently valid. Future extensions include: (i) hardware-enforced transient framebuffers using confidential computing enclaves (e.g., ARM Realm Management Extension / RISC-V Keystone), (ii) post-quantum migration to NIST FIPS 203/204 algorithms (ML-KEM and ML-DSA), and (iii) multi-party threshold expiration policies where deletion requires quorum consensus.
+
 \subsection{Conclusion}
 In this paper, we presented \textbf{VANISH}, an open, cross-platform protocol and operating system subsystem for cryptographically verifiable, self-expiring digital files. By integrating canonical CBOR metadata, Ed25519 digital signatures, and authenticated AES-256-GCM encryption with native operating system storage monitors, VANISH bridges the gap between closed messaging sandboxes and persistent filesystem storage.
 

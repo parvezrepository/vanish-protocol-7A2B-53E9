@@ -1,22 +1,22 @@
 {
-  "Standard ZIP": {
-    "framing_overhead_bytes": 120,
-    "creation_ms": 1.2114999997720588,
-    "extraction_ms": 0.5974699997750577
-  },
-  "TAR.GZ": {
-    "framing_overhead_bytes": 613,
-    "creation_ms": 18.102449999787495,
-    "extraction_ms": 1.4166699998895638
-  },
   "Raw AES-256-GCM": {
     "framing_overhead_bytes": 28,
-    "creation_ms": 1.2803299996448914,
-    "extraction_ms": 0.8853800005454104
+    "creation_ms": 1.260089999777847,
+    "extraction_ms": 0.9223799999745097
+  },
+  "Standard TAR": {
+    "framing_overhead_bytes": 6144,
+    "creation_ms": 0.8500999996613245,
+    "extraction_ms": 0.8969400005298667
+  },
+  "Signed Envelope": {
+    "framing_overhead_bytes": 92,
+    "creation_ms": 1.5460500006156508,
+    "extraction_ms": 1.5161800009082071
   },
   "VANISH (.vfile)": {
     "framing_overhead_bytes": 429,
-    "creation_ms": 2.9746499996690545,
-    "extraction_ms": 2.3954199998115655
+    "creation_ms": 2.9150900005333824,
+    "extraction_ms": 2.3474300003726967
   }
 }

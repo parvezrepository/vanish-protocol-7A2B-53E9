@@ -1,13 +1,10 @@
 """Comparative baseline benchmarking script for VANISH.
 
-Evaluates VANISH against established container and encryption formats:
-1. Standard ZIP Archive (.zip)
-2. GZIP Tarball (.tar.gz)
-3. Authenticated AES-256-GCM Raw Container
-4. VANISH (.vfile) Signed & Encrypted
-
-Measures framing byte overhead, creation latency, and extraction latency.
-Generates comparative figures for the paper.
+Evaluates VANISH against established container and encryption formats (all uncompressed):
+1. Raw AES-256-GCM (Cryptographic primitive lower bound)
+2. Standard TAR (Uncompressed filesystem container)
+3. Signed Encrypted Envelope (Ed25519 + AES-256-GCM authenticated envelope)
+4. VANISH (.vfile) Signed, Encrypted, CBOR Manifest & Policy
 """
 
 from __future__ import annotations
@@ -18,7 +15,6 @@ import os
 import tarfile
 import tempfile
 import time
-import zipfile
 from pathlib import Path
 
 import matplotlib
@@ -27,8 +23,32 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from vanish.constants import ExpiryPolicy
-from vanish.crypto import generate_aes_key, generate_ed25519_keypair, generate_nonce, encrypt_payload_aes_gcm, decrypt_payload_aes_gcm
+from vanish.crypto import (
+    compute_sha256,
+    decrypt_payload_aes_gcm,
+    encrypt_payload_aes_gcm,
+    generate_aes_key,
+    generate_ed25519_keypair,
+    generate_nonce,
+    sign_digest,
+    verify_signature,
+)
 from vanish.engine import VanishEngine
+
+# IEEE Publication Typography & Visual Settings
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["DejaVu Serif", "Times New Roman", "Computer Modern Roman"],
+    "font.size": 10,
+    "axes.labelsize": 11,
+    "axes.labelweight": "bold",
+    "axes.titlesize": 11,
+    "axes.titleweight": "bold",
+    "xtick.labelsize": 9.5,
+    "ytick.labelsize": 9.5,
+    "legend.fontsize": 9,
+    "figure.titlesize": 12,
+})
 
 
 def run_comparative_benchmarks(payload_size_bytes: int = 1024 * 1024, iterations: int = 10) -> dict[str, dict[str, float]]:
@@ -50,52 +70,7 @@ def run_comparative_benchmarks(payload_size_bytes: int = 1024 * 1024, iterations
         warm_out.mkdir(exist_ok=True)
         engine.unpack_file(warm_vfile, warm_out, pub, aes_key=wk)
 
-        # Baseline 1: Standard ZIP
-        zip_path = tmp_path / "test.zip"
-        t_create = []
-        for _ in range(iterations):
-            t0 = time.perf_counter()
-            with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_STORED) as zf:
-                zf.write(raw_file, arcname="payload.bin")
-            t_create.append((time.perf_counter() - t0) * 1000.0)
-
-        t_extract = []
-        for _ in range(iterations):
-            t0 = time.perf_counter()
-            with zipfile.ZipFile(zip_path, "r") as zf:
-                _ = zf.read("payload.bin")
-            t_extract.append((time.perf_counter() - t0) * 1000.0)
-
-        results["Standard ZIP"] = {
-            "framing_overhead_bytes": zip_path.stat().st_size - payload_size_bytes,
-            "creation_ms": float(np.mean(t_create)),
-            "extraction_ms": float(np.mean(t_extract)),
-        }
-
-        # Baseline 2: TAR GZIP
-        tar_path = tmp_path / "test.tar.gz"
-        t_create = []
-        for _ in range(iterations):
-            t0 = time.perf_counter()
-            with tarfile.open(tar_path, "w:gz") as tf:
-                tf.add(raw_file, arcname="payload.bin")
-            t_create.append((time.perf_counter() - t0) * 1000.0)
-
-        t_extract = []
-        for _ in range(iterations):
-            t0 = time.perf_counter()
-            with tarfile.open(tar_path, "r:gz") as tf:
-                f = tf.extractfile("payload.bin")
-                _ = f.read() if f else None
-            t_extract.append((time.perf_counter() - t0) * 1000.0)
-
-        results["TAR.GZ"] = {
-            "framing_overhead_bytes": tar_path.stat().st_size - payload_size_bytes,
-            "creation_ms": float(np.mean(t_create)),
-            "extraction_ms": float(np.mean(t_extract)),
-        }
-
-        # Baseline 3: Raw AES-256-GCM AEAD
+        # Baseline 1: Raw AES-256-GCM AEAD (Pure crypto lower bound)
         raw_enc_path = tmp_path / "test.aead"
         key = generate_aes_key()
         nonce = generate_nonce()
@@ -121,7 +96,60 @@ def run_comparative_benchmarks(payload_size_bytes: int = 1024 * 1024, iterations
             "extraction_ms": float(np.mean(t_extract)),
         }
 
-        # Candidate: VANISH Protocol (.vfile) - Signed & Encrypted
+        # Baseline 2: Standard Uncompressed TAR (Pure container framing, no compression)
+        tar_path = tmp_path / "test.tar"
+        t_create = []
+        for _ in range(iterations):
+            t0 = time.perf_counter()
+            with tarfile.open(tar_path, "w") as tf:
+                tf.add(raw_file, arcname="payload.bin")
+            t_create.append((time.perf_counter() - t0) * 1000.0)
+
+        t_extract = []
+        for _ in range(iterations):
+            t0 = time.perf_counter()
+            with tarfile.open(tar_path, "r") as tf:
+                f = tf.extractfile("payload.bin")
+                _ = f.read() if f else None
+            t_extract.append((time.perf_counter() - t0) * 1000.0)
+
+        results["Standard TAR"] = {
+            "framing_overhead_bytes": tar_path.stat().st_size - payload_size_bytes,
+            "creation_ms": float(np.mean(t_create)),
+            "extraction_ms": float(np.mean(t_extract)),
+        }
+
+        # Baseline 3: Signed & Encrypted Envelope (Ed25519 signature + AES-256-GCM)
+        env_path = tmp_path / "test.envelope"
+        t_create = []
+        for _ in range(iterations):
+            t0 = time.perf_counter()
+            env_key = generate_aes_key()
+            env_nonce = generate_nonce()
+            ct = encrypt_payload_aes_gcm(env_key, env_nonce, payload)
+            sig = sign_digest(priv, compute_sha256(payload))
+            # Binary framing: 64B sig + 12B nonce + ct
+            env_path.write_bytes(sig + env_nonce + ct)
+            t_create.append((time.perf_counter() - t0) * 1000.0)
+
+        t_extract = []
+        for _ in range(iterations):
+            t0 = time.perf_counter()
+            raw_env = env_path.read_bytes()
+            extracted_sig = raw_env[:64]
+            extracted_nonce = raw_env[64:76]
+            extracted_ct = raw_env[76:]
+            pt = decrypt_payload_aes_gcm(env_key, extracted_nonce, extracted_ct)
+            verify_signature(pub, extracted_sig, compute_sha256(pt))
+            t_extract.append((time.perf_counter() - t0) * 1000.0)
+
+        results["Signed Envelope"] = {
+            "framing_overhead_bytes": env_path.stat().st_size - payload_size_bytes,
+            "creation_ms": float(np.mean(t_create)),
+            "extraction_ms": float(np.mean(t_extract)),
+        }
+
+        # Candidate: VANISH Protocol (.vfile) - Signed, Encrypted & Policy Manifest
         vfile_path = tmp_path / "test.vfile"
         t_create = []
         keys = []
@@ -168,24 +196,36 @@ def plot_comparative_barchart(results: dict[str, dict[str, float]], out_path: Pa
     x = np.arange(len(systems))
     width = 0.35
 
-    plt.figure(figsize=(7.5, 4.2))
-    plt.bar(x - width / 2, creation_times, width, label="Packaging / Creation Latency", color="#3b528b", edgecolor="black")
-    plt.bar(x + width / 2, extraction_times, width, label="Unpacking / Verification Latency", color="#5dc863", edgecolor="black")
+    fig, ax = plt.subplots(figsize=(7.2, 4.2), dpi=300)
+    rects1 = ax.bar(x - width / 2, creation_times, width, label="Packaging / Creation Latency", color="#1b4f72", edgecolor="#154360", linewidth=0.9)
+    rects2 = ax.bar(x + width / 2, extraction_times, width, label="Unpacking & Verification Latency", color="#196f3d", edgecolor="#145a32", linewidth=0.9)
 
-    plt.ylabel("Execution Latency (ms) for 1MB Payload", fontsize=11, fontweight="bold")
-    plt.title("Comparative Performance: VANISH vs Established Containers", fontsize=12, fontweight="bold")
-    plt.xticks(x, systems, fontsize=10, fontweight="bold")
-    plt.legend(frameon=True, fontsize=10)
-    plt.grid(axis="y", ls="--", alpha=0.5)
-    plt.tight_layout()
+    ax.set_ylabel("Execution Latency (ms)", fontsize=11, fontweight="bold")
+    ax.set_title("Comparative Processing Latency for 1MB Payload (Uncompressed Baselines)", fontsize=11, fontweight="bold", pad=8)
+    ax.set_xticks(x)
+    ax.set_xticklabels(systems, fontsize=9.5, fontweight="bold")
+    ax.legend(frameon=True, facecolor="white", edgecolor="#cccccc", framealpha=0.95, fontsize=9.5)
+    ax.grid(axis="y", ls="--", color="#dcdcdc", alpha=0.8)
 
-    plt.savefig(out_path.with_suffix(".png"), dpi=300)
-    plt.savefig(out_path.with_suffix(".pdf"))
+    max_val = max(max(creation_times), max(extraction_times))
+    ax.set_ylim(0, max_val * 1.28)
+
+    for bar in rects1:
+        yval = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2.0, yval + 0.05, f"{yval:.2f}", ha="center", va="bottom", fontsize=8.5, fontweight="bold")
+
+    for bar in rects2:
+        yval = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2.0, yval + 0.05, f"{yval:.2f}", ha="center", va="bottom", fontsize=8.5, fontweight="bold")
+
+    fig.tight_layout()
+    fig.savefig(out_path.with_suffix(".png"), dpi=300)
+    fig.savefig(out_path.with_suffix(".pdf"))
     plt.close()
 
 
 def main() -> None:
-    print("[*] Running Comparative Baseline Benchmarking (1MB payload)...")
+    print("[*] Running Fair Comparative Baseline Benchmarking (1MB payload)...")
     results = run_comparative_benchmarks(payload_size_bytes=1024 * 1024, iterations=10)
     
     fig_dir = Path("paper/figures")
@@ -201,7 +241,7 @@ def main() -> None:
 
     print("[+] Comparative benchmark complete:")
     for sys_name, metrics in results.items():
-        print(f"    - {sys_name:18}: Overhead={metrics['framing_overhead_bytes']}B, Create={metrics['creation_ms']:.2f}ms, Extract={metrics['extraction_ms']:.2f}ms")
+        print(f"    - {sys_name:24}: Overhead={metrics['framing_overhead_bytes']}B, Create={metrics['creation_ms']:.2f}ms, Extract={metrics['extraction_ms']:.2f}ms")
     print(f"[+] Output: {out_fig.with_suffix('.pdf')}")
 
 
