@@ -1,10 +1,10 @@
 \section{Native Operating System Enforcement}
 \label{sec:os_enforcement}
 
-A foundational thesis of the VANISH architecture is that ephemeral file lifecycle management must be enforced by the host operating system rather than relegated to proprietary application silos. In this section, we present the systems design of our native enforcement architecture across two dominant computing environments: desktop Linux and mobile Android (AOSP).
+VANISH enforces file lifecycles directly at the operating system level, rather than relying on individual user applications. In this section, we present our enforcement design for desktop Linux and mobile Android (AOSP).
 
-\subsection{Architectural Blueprint}
-Figure~\ref{fig:os_arch} illustrates the tripartite OS enforcement pipeline comprising storage interception, cryptographic verification, and scheduled revocation.
+\subsection{Architectural Overview}
+Figure~\ref{fig:os_arch} shows the three-stage OS enforcement pipeline: storage interception, cryptographic verification, and scheduled revocation.
 
 \begin{figure}[htbp]
 \centering
@@ -14,32 +14,32 @@ Figure~\ref{fig:os_arch} illustrates the tripartite OS enforcement pipeline comp
 \end{figure}
 
 \subsection{Desktop Linux Daemon (\texttt{vanishd})}
-On Linux, native enforcement is orchestrated by a lightweight systemd daemon (\texttt{vanishd}):
+On Linux, a lightweight systemd daemon (\texttt{vanishd}) manages file lifecycles:
 \begin{enumerate}
-    \item \textbf{Kernel Ingestion via \texttt{fanotify}:} Rather than inefficient directory polling, \texttt{vanishd} attaches to filesystem mount points utilizing the kernel \texttt{fanotify} API listening for \texttt{FAN\_CLOSE\_WRITE} events. When an application finishes writing a \texttt{.vfile}, the kernel dispatches a file descriptor directly to \texttt{vanishd}.
-    \item \textbf{Verification \& Scheduling:} The daemon verifies the 32-byte binary header, parses the canonical CBOR manifest, checks the Ed25519 signature against trusted public keys, and enqueues the expiration timestamp $t_{\text{exp}}$ into a thread-safe min-heap.
-    \item \textbf{Kernel Timer Queue:} The scheduler arms an epoll-monitored \texttt{timerfd} with the delta to the earliest upcoming expiration $\min(t_{\text{exp}})$. This design achieves zero CPU utilization during quiescent periods.
-    \item \textbf{Purge Execution:} Upon timer firing, the daemon executes the designated policy. Under \texttt{AUTO\_UNLINK}, the filesystem inode is unlinked. Under \texttt{SECURE\_SHRED}, the physical storage blocks are overwritten twice with cryptographically secure random bytes prior to unlinking, preventing residual sector reconstruction.
+    \item \textbf{Kernel Ingestion via \texttt{fanotify}:} Instead of polling directories, \texttt{vanishd} listens for \texttt{FAN\_CLOSE\_WRITE} events on target mount points using the kernel \texttt{fanotify} API. When an application finishes saving a \texttt{.vfile}, the kernel sends the file descriptor directly to the daemon.
+    \item \textbf{Verification and Scheduling:} The daemon validates the 32-byte header, parses the CBOR manifest, verifies the Ed25519 signature against trusted public keys, and places the expiration timestamp $t_{\text{exp}}$ into an in-memory min-heap.
+    \item \textbf{Kernel Timer Queue:} The scheduler arms a \texttt{timerfd} monitored with epoll to wake up at the earliest expiration time $\min(t_{\text{exp}})$. This design uses zero CPU cycles when no files are pending expiration.
+    \item \textbf{File Removal:} When the timer fires, the daemon applies the manifest policy. Under \texttt{AUTO\_UNLINK}, the filesystem inode is deleted. Under \texttt{SECURE\_SHRED}, the data blocks are overwritten twice with random bytes before deletion to prevent file carving.
 \end{enumerate}
 
-\subsection{Mobile Android Integration (AOSP)}
-Mobile operating systems present unique challenges, notably aggressive power management (Android Doze mode) and sandboxed application boundaries (Scoped Storage)~\cite{enck2014taintdroid}. We implemented an open-source reference framework patch for the Android Open Source Project (AOSP) Android 14/15:
+\subsection{Android AOSP Integration}
+Mobile operating systems use aggressive power saving (Android Doze mode) and strict app isolation (Scoped Storage)~\cite{enck2014taintdroid}. We implemented an open-source reference patch for Android 14/15:
 
 \subsubsection{System Service (\texttt{VanishManagerService})}
-We introduce a core system service, \texttt{VanishManagerService}, published under \texttt{ServiceManager} as \texttt{Context.VANISH\_SERVICE}. The service exposes an Android Interface Definition Language (AIDL) contract, \texttt{IVanishManager}, allowing system components to coordinate file lifecycles across process boundaries via Binder IPC.
+We implemented a core system service, \texttt{VanishManagerService}, registered in \texttt{ServiceManager} as \texttt{Context.VANISH\_SERVICE}. It exposes an Android Interface Definition Language (AIDL) contract, \texttt{IVanishManager}, allowing system apps to register and query file lifecycles over Binder IPC.
 
 \subsubsection{MediaProvider Storage Hook}
-To detect incoming containers immediately upon acquisition, we inject \texttt{VanishMediaScannerHook} into the AOSP \texttt{ModernMediaScanner}. When the Android \texttt{DownloadManager} or messaging apps write an incoming file to public shared storage, the media scanner inspects the magic bytes (\texttt{VAN1}). If valid, it extracts the manifest bounds and registers the file with \texttt{VanishManagerService} via AIDL.
+To detect files when they are downloaded, we added \texttt{VanishMediaScannerHook} to the AOSP \texttt{ModernMediaScanner}. When the Android \texttt{DownloadManager} or messaging apps write an incoming file to shared storage, the media scanner checks for the \texttt{VAN1} magic bytes, reads the manifest, and registers the file with \texttt{VanishManagerService}.
 
 \subsubsection{Storage Access Framework (SAF) Hook}
-To ensure backward compatibility without modifying third-party applications, we implemented \texttt{VanishDocumentsProvider}. This component registers a virtual storage root in the Android DocumentsUI (the native Files app). When a user browses downloads, the provider queries \texttt{IVanishManager}, annotates time-bounded containers with active countdown badges, and dynamically denies descriptor opening once $t \ge t_{\text{exp}}$.
+To let users view files without installing third-party apps, we implemented \texttt{VanishDocumentsProvider}. It registers a virtual storage drive in the native Android Files app (DocumentsUI). Users can browse active files with real-time countdown badges, while the provider blocks access once a file expires.
 
-\subsubsection{Doze-Resilient Power Management}
-Traditional continuous background daemon loops trigger Android battery health warnings and process termination. \texttt{VanishManagerService} eliminates background polling by scheduling wakeups via:
+\subsubsection{Power Management in Doze Mode}
+Background loops on Android drain battery and are often killed by the system. \texttt{VanishManagerService} avoids continuous polling by setting exact wakeups using:
 \begin{equation}
     \texttt{AlarmManager.setExactAndAllowWhileIdle(ELAPSED\_REALTIME\_WAKEUP, \dots)}
 \end{equation}
-This allows the application processor to enter deep low-power sleep states ($C$-states), waking only for sub-millisecond intervals precisely when an expiration deadline is reached.
+This allows the phone processor to stay in deep sleep (Doze mode) until the exact expiration deadline arrives.
 
-\subsubsection{SELinux Security Architecture}
-To adhere to the principle of least privilege, we engineered a dedicated SELinux policy (\texttt{vanish.te})~\cite{smalley2013security}. The policy grants the \texttt{system\_server} permission to unlink and overwrite files strictly within target public download volumes (\texttt{media\_rw\_data\_file} and \texttt{download\_file}), while strictly prohibiting unlinking across core system partitions (\texttt{neverallow system\_server system\_file:file unlink}).
+\subsubsection{SELinux Access Control}
+To follow the principle of least privilege, we created an SELinux policy (\texttt{vanish.te})~\cite{smalley2013security}. The policy allows \texttt{system\_server} to delete and overwrite files only inside download directories (\texttt{media\_rw\_data\_file}), while strictly preventing deletion in system directories (\texttt{neverallow system\_server system\_file:file unlink}).

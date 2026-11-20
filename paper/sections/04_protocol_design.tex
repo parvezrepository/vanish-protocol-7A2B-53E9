@@ -1,46 +1,47 @@
 \section{VANISH Protocol Architecture}
 \label{sec:protocol}
 
+The VANISH protocol consists of two main parts: a portable binary container format (\texttt{.vfile}) and an operating system lifecycle enforcement service.
+
 \subsection{Binary Container Layout}
-The VANISH container (\texttt{.vfile}) employs a fixed 32-byte header followed by variable-length authenticated segments:
+A \texttt{.vfile} container starts with a fixed 32-byte header, followed by authenticated variable-length segments:
 \begin{enumerate}
-    \item \textbf{Fixed Header (32 bytes):} Contains the magic bytes (\texttt{VAN1}), protocol version ($1$), feature bitmask flags, and byte-length descriptors for manifest, payload, signature, public key, and nonce.
-    \item \textbf{Public Key Segment:} 32 raw bytes representing the Ed25519 issuer public key.
-    \item \textbf{Nonce Segment:} 12 bytes for AES-GCM initialization vector.
-    \item \textbf{Digital Signature Segment:} 64 bytes containing the detached Ed25519 signature.
-    \item \textbf{Manifest Segment:} Canonical CBOR (RFC 8949) structure encoding file metadata, MIME type, issuance timestamp, expiration epoch, and policy action.
-    \item \textbf{Payload Segment:} Raw original content or AES-256-GCM ciphertext.
+    \item \textbf{Fixed Header (32 bytes):} Contains the magic bytes (\texttt{VAN1}), protocol version ($1$), feature flags, and lengths for the manifest, payload, signature, public key, and initialization vector.
+    \item \textbf{Public Key (32 bytes):} The Ed25519 public key of the issuing sender.
+    \item \textbf{Nonce (12 bytes):} The initialization vector used for AES-GCM encryption (zero bytes if unencrypted).
+    \item \textbf{Digital Signature (64 bytes):} A detached Ed25519 digital signature.
+    \item \textbf{Manifest Segment:} Canonical CBOR (RFC 8949) data holding file metadata, MIME type, issuance time, expiration time, and the policy action.
+    \item \textbf{Payload Segment:} The raw file data or its AES-256-GCM ciphertext.
 \end{enumerate}
 
 \subsection{Cryptographic Integrity Binding}
-To prevent length-extension, flag alteration, or parameter swapping, the digital signature is evaluated over a unified preimage:
+To ensure that an attacker cannot alter flags, replace the manifest, or extend the expiration date, the signature covers a unified cryptographic preimage:
 \begin{equation}
     \mathcal{M} = \text{Header}_{0:26} \mathbin{\Vert} \text{PubKey} \mathbin{\Vert} \text{Nonce} \mathbin{\Vert} \text{Manifest}_{\text{CBOR}} \mathbin{\Vert} \mathcal{H}(\text{Payload})
 \end{equation}
-where $\mathcal{H}$ denotes SHA-256. The signature $\sigma$ is computed as:
+where $\mathcal{H}$ represents SHA-256. The sender computes the digital signature $\sigma$ as:
 \begin{equation}
-    \sigma = \text{Ed25519\_Sign}(\text{SK}_{\text{Issuer}}, \mathcal{H}(\mathcal{M}))
+    \sigma = \text{Ed25519\_Sign}(\text{SK}_{\text{Sender}}, \mathcal{H}(\mathcal{M}))
 \end{equation}
-Any post-generation modification to flags, timestamps, or payload data invalidates $\sigma$, resulting in immediate container rejection.
+Because the signature binds the first 26 bytes of the header, the public key, the nonce, the canonical CBOR manifest, and the payload hash, any change to timestamps, policy flags, or file content will cause verification to fail.
 
-\subsection{Formal Security Guarantees}
-We formalize the security properties of VANISH under standard cryptographic assumptions:
+\subsection{Formal Security Properties}
+We state two core security theorems for the protocol:
 
 \newtheorem{theorem}{Theorem}
-\newtheorem{lemma}{Lemma}
 
-\begin{theorem}[Manifest \& Header Unforgeability]
-Assuming Ed25519 is Existentially Unforgeable under Chosen Message Attacks (EUF-CMA) and SHA-256 is collision-resistant, no polynomial-time adversary $\mathcal{A}$ without access to $\text{SK}_{\text{Issuer}}$ can construct a forged container $\mathcal{C}'$ with an extended expiry timestamp $t'_{\text{exp}} > t_{\text{exp}}$ that satisfies verification.
+\begin{theorem}[Manifest Unforgeability]
+Assuming Ed25519 is Existentially Unforgeable under Chosen Message Attacks (EUF-CMA) and SHA-256 is collision resistant, no polynomial-time adversary without $\text{SK}_{\text{Sender}}$ can create a modified container with a later expiration date $t'_{\text{exp}} > t_{\text{exp}}$ that passes signature verification.
 \end{theorem}
 
 \begin{IEEEproof}
-Suppose $\mathcal{A}$ modifies $t_{\text{exp}}$ to $t'_{\text{exp}}$ in $\text{Manifest}_{\text{CBOR}}$. Under the collision resistance of SHA-256, the new preimage digest $\mathcal{H}(\mathcal{M}')$ satisfies $\mathcal{H}(\mathcal{M}') \ne \mathcal{H}(\mathcal{M})$ with probability $1 - 2^{-256}$. For $\mathcal{C}'$ to be accepted, $\mathcal{A}$ must generate a signature $\sigma'$ such that $\text{Ed25519\_Verify}(\text{PK}_{\text{Issuer}}, \sigma', \mathcal{H}(\mathcal{M}')) = \text{True}$. Computing $\sigma'$ without $\text{SK}_{\text{Issuer}}$ implies breaking the EUF-CMA security of Ed25519, contradicting the assumption.
+If an adversary changes $t_{\text{exp}}$ to $t'_{\text{exp}}$, the canonical CBOR bytes of the manifest change. Because SHA-256 is collision resistant, the new hash $\mathcal{H}(\mathcal{M}')$ differs from the original hash with probability $1 - 2^{-256}$. Generating a valid signature for $\mathcal{H}(\mathcal{M}')$ without $\text{SK}_{\text{Sender}}$ requires breaking the EUF-CMA security of Ed25519, which contradicts our assumption.
 \end{IEEEproof}
 
-\begin{theorem}[Forward Secrecy via Crypto-Shredding]
-Under Tier 2 (Encrypted Mode), erasure of key $K$ from the OS Keystore at $t \ge t_{\text{exp}}$ ensures that recovery of plaintext $\mathcal{P}$ from raw storage remnants is bounded by the IND-CPA security of AES-256-GCM.
+\begin{theorem}[Forward Secrecy through Key Deletion]
+In Tier 2 (Encrypted Mode), deleting the decryption key $K$ from the host keystore when $t \ge t_{\text{exp}}$ ensures that an adversary cannot recover the plaintext from disk remnants under the standard IND-CPA security of AES-256-GCM.
 \end{theorem}
 
 \begin{IEEEproof}
-Let physical storage blocks retain ciphertext $\mathcal{C}$ after unlinking. Decrypting $\mathcal{C}$ requires reconstructing $K$. Because $K$ is randomly drawn from $\{0,1\}^{256}$ and purged via memory zeroization and Keystore deletion, any adversary without $K$ attempting to distinguish $\mathcal{P}$ has advantage $\mathbf{Adv}^{\text{IND-CPA}}_{\text{AES}}(\mathcal{A}) \le \text{negl}(\lambda)$, rendering raw physical forensic reconstruction infeasible.
+The payload is encrypted with a 256-bit symmetric key $K$. When the file expires, the OS daemon zeroes out $K$ in memory and removes it from the secure keystore. Without $K$, distinguishing the plaintext from random noise is equivalent to breaking AES-256, which has negligible advantage $\mathbf{Adv}^{\text{IND-CPA}}_{\text{AES}}(\mathcal{A}) \le \text{negl}(\lambda)$.
 \end{IEEEproof}

@@ -1,7 +1,7 @@
 \section{Empirical Evaluation}
 \label{sec:evaluation}
 
-We evaluated our reference implementation across four fundamental dimensions: container framing overhead, execution latency across payload scales, comparative performance against established containers, and power/battery overhead on mobile systems.
+We evaluated our reference implementation across four areas: container framing overhead, processing latency across file sizes, comparative performance against existing formats, and mobile battery consumption.
 
 \begin{table}[htbp]
 \caption{Container Framing Overhead by Component}
@@ -23,23 +23,23 @@ Manifest Segment & Canonical CBOR (RFC 8949) & 180--240 \\
 \end{center}
 \end{table}
 
-\subsection{Framing Overhead Analysis}
-As delineated in Table~\ref{tab:overhead}, the fixed structural framing of a \texttt{.vfile} container is strictly bounded between $320$ and $380$ bytes, regardless of payload magnitude. For a standard $1$\,MB document, this introduces less than $0.036\%$ storage expansion, demonstrating near-zero storage amplification compared to unmanaged raw files.
+\subsection{Framing Overhead}
+As shown in Table~\ref{tab:overhead}, the metadata overhead of a \texttt{.vfile} container is bounded between $320$ and $380$ bytes, regardless of payload size. For a typical $1$\,MB document, this adds less than $0.04\%$ to the file size, showing near-zero storage expansion compared to unmanaged files.
 
-\subsection{Processing Latency vs Payload Scale}
-We measured end-to-end execution times for packing (both unencrypted and with AES-256-GCM AEAD encryption) and unpacking across payloads scaling from $1$\,KB to $20$\,MB. As shown in Figure~\ref{fig:latency}, processing latency scales linearly with payload magnitude, bounded predominantly by hardware SHA-256 and AES acceleration.
+\subsection{Processing Latency Across File Sizes}
+We measured the time required to pack (both unencrypted and with AES-256-GCM encryption) and unpack payloads from $1$\,KB to $20$\,MB. As shown in Figure~\ref{fig:latency}, processing time grows linearly with payload size, limited mainly by hardware SHA-256 and AES performance.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.95\columnwidth]{figures/fig_latency_vs_size.pdf}
-\caption{VANISH processing latency across varying payload scales (log-log scale). Sub-millisecond latency is observed for standard documents ($<100$\,KB), scaling gracefully to $48.5$\,ms for $20$\,MB payloads.}
+\caption{VANISH processing latency across file sizes (log-log scale). Small files ($<100$\,KB) take under $1.5$\,ms, while a $20$\,MB file takes $48.5$\,ms.}
 \label{fig:latency}
 \end{figure}
 
-For typical office documents and images ($100$\,KB to $1$\,MB), packing and signing requires only $1.13$\,ms to $4.09$\,ms, while recipient unpacking and decryption executes in $0.95$\,ms to $3.07$\,ms.
+For typical office documents and images ($100$\,KB to $1$\,MB), packing and signing requires between $1.13$\,ms and $4.09$\,ms, while recipient unpacking and decryption takes between $0.95$\,ms and $3.07$\,ms.
 
 \subsection{Comparative Baseline Performance}
-To contextualize the latency and framing cost of VANISH, we evaluated identical $1$\,MB payloads against standard archiving and encryption formats: Standard ZIP (\texttt{.zip}), GZIP tarball (\texttt{.tar.gz}), and raw AES-256-GCM encryption.
+To evaluate how VANISH compares to everyday tools, we tested an identical $1$\,MB file against Standard ZIP (\texttt{.zip}), GZIP tarball (\texttt{.tar.gz}), and raw AES-256-GCM encryption.
 
 \begin{figure}[htbp]
 \centering
@@ -48,10 +48,10 @@ To contextualize the latency and framing cost of VANISH, we evaluated identical 
 \label{fig:comparative}
 \end{figure}
 
-As shown in Figure~\ref{fig:comparative}, VANISH packages and signs a $1$\,MB container in $6.45$\,ms and unpacks in $2.54$\,ms. This is significantly faster than standard GZIP compression ($17.92$\,ms) while adding full Ed25519 asymmetric signature authentication and lifecycle policy verification for an overhead of only $429$\,bytes.
+As shown in Figure~\ref{fig:comparative}, VANISH packages and signs a $1$\,MB container in $6.45$\,ms and unpacks in $2.54$\,ms. This is nearly three times faster than standard GZIP compression ($17.92$\,ms), while providing full Ed25519 digital signature verification and expiration tracking for only $429$\,bytes of overhead.
 
-\subsection{Verification Breakdown & Daemon Throughput}
-To assess the feasibility of running \texttt{vanishd} as an OS-level background service, we micro-benchmarked the isolated sub-steps of container verification on a $1$\,MB container. Figure~\ref{fig:breakdown} illustrates the execution breakdown:
+\subsection{Verification Breakdown and Throughput}
+To verify that \texttt{vanishd} can run efficiently in the background, we measured the execution time of each sub-step during the verification of a $1$\,MB container. Figure~\ref{fig:breakdown} shows the breakdown:
 
 \begin{figure}[htbp]
 \centering
@@ -61,25 +61,25 @@ To assess the feasibility of running \texttt{vanishd} as an OS-level background 
 \end{figure}
 
 \begin{itemize}
-    \item \textbf{Binary Parsing:} $0.42$\,ms to ingest and validate the 32-byte header and parse the canonical CBOR manifest.
-    \item \textbf{Ed25519 Verification:} $0.57$\,ms to cryptographically verify container authenticity against the issuer public key.
-    \item \textbf{Payload Hash Verification:} $0.46$\,ms to compute SHA-256 over the $1$\,MB payload and compare against the manifest commitment.
-    \item \textbf{Time Policy Validation:} $0.0002$\,ms to evaluate epoch bounds against monotonic clock checkpoints.
+    \item \textbf{Binary Parsing:} $0.42$\,ms to parse the 32-byte header and CBOR manifest.
+    \item \textbf{Ed25519 Signature Verification:} $0.57$\,ms to verify container authenticity.
+    \item \textbf{SHA-256 Hash Verification:} $0.46$\,ms to verify payload integrity.
+    \item \textbf{Time Policy Check:} $0.0002$\,ms to evaluate expiration against monotonic clock state.
 \end{itemize}
 
-The cumulative verification cost is approximately $1.45$\,ms per megabyte. Consequently, a single CPU core in the host operating system can verify over $680$ incoming containers per second without degrading system interactivity.
+Total verification takes approximately $1.45$\,ms per megabyte. On a single CPU core, the host operating system can verify more than $680$ incoming containers per second without affecting system responsiveness.
 
-\subsection{Mobile Energy and Battery Profiling}
-On battery-constrained mobile platforms (Android AOSP), background execution efficiency is paramount. We compared our \texttt{AlarmManager.setExactAndAllowWhileIdle()} architecture against a traditional background filesystem polling thread over a 24-hour quiescent monitoring benchmark:
+\subsection{Mobile Energy Consumption}
+On mobile devices (Android AOSP), background battery use is critical. We compared our \texttt{AlarmManager.setExactAndAllowWhileIdle()} implementation against a traditional directory polling thread over 24 hours:
 \begin{itemize}
-    \item \textbf{Continuous Polling Daemon:} Generated 1,440 background wakeups per day, causing $11.8\%$ cumulative battery discharge.
-    \item \textbf{VANISH Min-Heap Architecture:} Generated exactly $0$ redundant wakeups, executing file unlinking in $<2$\,ms upon deadline alarms and yielding negligible ($<0.05\%$) measurable 24-hour battery consumption.
+    \item \textbf{Continuous Directory Polling:} Caused 1,440 wakeups per day, resulting in $11.8\%$ battery drain.
+    \item \textbf{VANISH Min-Heap Architecture:} Generated zero unnecessary wakeups, deleting files in under $2$\,ms upon alarm firing and consuming less than $0.05\%$ battery over 24 hours.
 \end{itemize}
 
-\subsection{Adversarial Tampering Resilience}
-We evaluated VANISH against a comprehensive suite of synthetic attacks:
+\subsection{Adversarial Tampering Tests}
+We tested VANISH against synthetic attacks:
 \begin{itemize}
-    \item \textbf{Timestamp Manipulation:} We injected 10,000 randomized single-bit and multi-bit corruptions into the manifest expiration epoch $t_{\text{exp}}$. In 100\% of trials, signature verification rejected the corrupted container before any payload access occurred.
-    \item \textbf{Clock Rollback Stress Test:} We executed 1,000 simulated system clock rollbacks (reverting system time by 1 hour to 10 years). The monotonic delta checker intercepted all attempts ($0\%$ false negatives), raising an immediate \texttt{ClockRollbackError}.
-    \item \textbf{Forensic Data Erasure:} Utilizing the \texttt{SECURE\_SHRED} policy, files marked for expiration undergo multi-pass pseudorandom block overwriting before unlinking, preventing residual sector reconstruction via standard file-carving forensic tools.
+    \item \textbf{Timestamp Tampering:} We introduced 10,000 random bitflips into the expiration epoch $t_{\text{exp}}$. In 100\% of trials, signature verification rejected the container immediately.
+    \item \textbf{Clock Rollback Tests:} In 1,000 simulated clock rollbacks (setting the clock back from 1 hour to 10 years), the monotonic checker caught all attempts ($0\%$ false negatives).
+    \item \textbf{Secure Shredding:} Files marked with \texttt{SECURE\_SHRED} had their disk blocks overwritten with random bytes twice before unlinking, preventing file recovery via standard undelete tools.
 \end{itemize}
