@@ -1,15 +1,16 @@
 \section{Empirical Evaluation}
 \label{sec:evaluation}
 
-We evaluated our reference implementation across five core dimensions: container framing overhead, processing latency across payload tiers, comparative baseline performance, verification micro-breakdowns, and mobile battery consumption.
+We evaluated our reference implementation across five core dimensions: framing overhead, processing latency across payload tiers, comparative performance, verification micro-breakdowns, and mobile battery impact.
 
-\textbf{Experimental Testbed:} Micro-benchmarks were executed on an x86\_64 workstation (AMD Ryzen 7 5800H, 8 cores @ 3.2\,GHz, 32\,GB DDR4 RAM, PCIe 3.0 NVMe SSD) running Linux kernel 6.8 and Python 3.12 with OpenSSL 3.2 libcrypto CFFI bindings. All benchmark loops utilized a warm-up cycle to eliminate JIT compilation and module-loading cold-start artifacts. Mobile power profiling was conducted on an Android 14 (API level 34) AOSP build using Google Batterystats and Battery Historian.
+\textbf{Experimental Testbed:} Micro-benchmarks were executed on an x86\_64 workstation (AMD Ryzen 7 5800H, 8 cores @ 3.2\,GHz, 32\,GB DDR4 RAM, PCIe 3.0 NVMe SSD) running Linux 6.8 and Python 3.12 with OpenSSL 3.2 libcrypto CFFI bindings. All benchmark loops utilized a warm-up cycle to eliminate JIT and module-loading cold-start artifacts. Mobile energy was profiled on an Android 14 (API 34) AOSP build via Google Batterystats and Battery Historian.
 
 \begin{table}[htbp]
 \caption{Container Framing Overhead by Component}
 \label{tab:overhead}
-\begin{center}
+\centering
 \small
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{llr}
 \toprule
 \textbf{Component} & \textbf{Format / Encoding} & \textbf{Size (Bytes)} \\
@@ -19,49 +20,49 @@ Public Key & Raw Ed25519 public key & 32 \\
 AEAD Nonce & AES-256-GCM IV & 12 \\
 Digital Signature & Detached Ed25519 signature & 64 \\
 \midrule
-\textit{Subtotal: Fixed Binary Framing} & \textit{Mandatory Protocol Fields} & \textit{140} \\
+\textit{Subtotal: Fixed Framing} & \textit{Mandatory Protocol Fields} & \textit{140} \\
 \midrule
 Manifest Segment & Canonical CBOR (RFC 8949) & 180--289 \\
 \midrule
-\textbf{Total Framing Overhead} & & \textbf{320--429 Bytes} \\
+\textbf{Total Framing Overhead} & & \textbf{320--429} \\
 \bottomrule
-\end{tabular}
-\end{center}
+\end{tabular}%
+}
 \end{table}
 
 \subsection{Framing Overhead}
-As detailed in Table~\ref{tab:overhead}, a \texttt{.vfile} container contains exactly $140$\,bytes of fixed binary framing. The manifest segment varies between $180$ and $289$\,bytes depending on filename length and metadata tags (enforced to a protocol ceiling of $4096$\,bytes). In our evaluated $1$\,MB sample, total overhead was precisely $429$\,bytes ($0.041\%$ of file size), demonstrating near-zero storage expansion.
+As shown in Table~\ref{tab:overhead}, a \texttt{.vfile} container contains exactly $140$\,bytes of fixed binary framing. The manifest segment varies between $180$ and $289$\,bytes depending on metadata tags (bounded to $\le 4096$\,bytes). In our evaluated $1$\,MB sample, total overhead was precisely $429$\,bytes ($0.041\%$ of file size), demonstrating near-zero storage expansion.
 
 \subsection{Processing Latency Across File Sizes}
-We measured execution time for packing (unencrypted and AES-256-GCM encrypted) and unpacking payloads from $1$\,KB to $20$\,MB across 5 iterations each. As shown in Figure~\ref{fig:latency}, processing time scales linearly with payload size.
+We measured execution time for packing (unencrypted and AES-256-GCM encrypted) and unpacking payloads from $1$\,KB to $20$\,MB across 5 iterations each (Figure~\ref{fig:latency}).
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.95\columnwidth]{figures/fig_latency_vs_size.pdf}
-\caption{VANISH processing latency vs payload size (log-log scale). Files $\le 100$\,KB require $\le 1.3$\,ms, while a $20$\,MB payload processes in $44.8$\,ms.}
+\includegraphics[width=0.85\columnwidth]{figures/fig_latency_vs_size.pdf}
+\caption{VANISH processing latency vs payload size (log-log scale). Files $\le 100$\,KB require $\le 1.3$\,ms; a $20$\,MB payload processes in $44.8$\,ms.}
 \label{fig:latency}
 \end{figure}
 
-For small payloads ($1$\,KB to $100$\,KB), unencrypted packing requires $1.11$\,ms to $1.14$\,ms, encrypted packing requires $1.01$\,ms to $1.27$\,ms, and unpacking requires $0.63$\,ms to $0.87$\,ms. For a $1$\,MB payload, unencrypted packing takes $2.60$\,ms, encrypted packing takes $2.93$\,ms, and unpacking takes $2.41$\,ms. At $20$\,MB, encryption and packaging take $44.84$\,ms, achieving an effective cryptographic throughput exceeding $450$\,MB/s.
+For small payloads ($1$\,KB to $100$\,KB), unencrypted packing requires $1.11$\,ms to $1.14$\,ms, encrypted packing requires $1.01$\,ms to $1.27$\,ms, and unpacking requires $0.63$\,ms to $0.87$\,ms. For a $1$\,MB payload, unencrypted packing takes $2.60$\,ms, encrypted packing takes $2.93$\,ms, and unpacking takes $2.41$\,ms. At $20$\,MB, encryption and packaging take $44.84$\,ms, achieving throughput exceeding $450$\,MB/s.
 
 \subsection{Comparative Baseline Performance}
-To contextualize VANISH against established container formats, we evaluated an identical $1$\,MB file across Standard ZIP (\texttt{.zip}), GZIP tarball (\texttt{.tar.gz}), raw AES-256-GCM, and VANISH with \texttt{SECURE\_SHRED}.
+To contextualize VANISH, we evaluated an identical $1$\,MB file across Standard ZIP, GZIP tarball, raw AES-256-GCM, and VANISH with \texttt{SECURE\_SHRED} (Figure~\ref{fig:comparative}).
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.95\columnwidth]{figures/fig_comparative_baseline.pdf}
+\includegraphics[width=0.85\columnwidth]{figures/fig_comparative_baseline.pdf}
 \caption{Comparative performance for 1\,MB payload: VANISH vs Standard ZIP, TAR.GZ, and Raw AES-256-GCM.}
 \label{fig:comparative}
 \end{figure}
 
-As shown in Figure~\ref{fig:comparative}, VANISH packages and signs the $1$\,MB container in $2.97$\,ms and unpacks in $2.40$\,ms (measured across 10 iterations with file disk synchronization). This is over six times faster than GZIP compression ($18.10$\,ms creation), while providing full asymmetric digital signatures, tamper-proof policy manifests, and scheduled lifecycle enforcement for only $429$\,bytes of framing.
+VANISH packages and signs the $1$\,MB container in $2.97$\,ms and unpacks in $2.40$\,ms (measured across 10 iterations with file disk synchronization). This is over six times faster than GZIP compression ($18.10$\,ms creation), while providing full asymmetric digital signatures, tamper-proof policy manifests, and scheduled lifecycle enforcement for only $429$\,bytes of framing.
 
-\subsection{Verification Breakdown and Computational Complexity}
-To analyze verification efficiency within host daemons, we measured each verification sub-component on a $1$\,MB container (Figure~\ref{fig:breakdown}):
+\subsection{Verification Breakdown and Throughput}
+We isolated each verification sub-component on a $1$\,MB container (Figure~\ref{fig:breakdown}):
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\columnwidth]{figures/fig_verification_breakdown.pdf}
+\includegraphics[width=0.82\columnwidth]{figures/fig_verification_breakdown.pdf}
 \caption{Micro-benchmark breakdown of verification sub-components for a $1$\,MB container.}
 \label{fig:breakdown}
 \end{figure}
@@ -77,10 +78,10 @@ Total verification of the $1$\,MB container took $1.38$\,ms. Formally, verificat
 \begin{equation}
     T_{\text{verify}}(S) = T_{\text{parse}} + T_{\text{Ed25519}} + T_{\text{time}} + S \cdot \alpha_{\text{SHA256}}
 \end{equation}
-where fixed cryptographic overhead $T_{\text{const}} \approx 0.92$\,ms and streaming hash coefficient $\alpha_{\text{SHA256}} \approx 0.46$\,ms/MB. On a single core, the daemon can verify $>720$ containers per second.
+where constant overhead is $T_{\text{const}} \approx 0.92$\,ms and streaming hash coefficient is $\alpha_{\text{SHA256}} \approx 0.46$\,ms/MB. On a single core, the daemon can verify $>720$ containers per second.
 
 \subsection{Mobile Energy Consumption}
-On battery-powered Android devices, background wakeups must be minimized. We benchmarked our \texttt{AlarmManager} min-heap design against a standard 60-second directory polling service over a continuous 24-hour test on Android 14:
+On battery-powered devices, background wakeups must be minimized. We benchmarked our \texttt{AlarmManager} min-heap design against a 60-second directory polling service over a continuous 24-hour test on Android 14:
 \begin{itemize}
     \item \textbf{Continuous Directory Polling:} Generated 1,440 processor wakeups per day, preventing deep sleep and causing $11.8\%$ battery drain.
     \item \textbf{VANISH Min-Heap Architecture:} Generated zero unnecessary wakeups. The device remained in deep Doze mode until scheduled expiration, consuming less than $0.05\%$ incremental battery over 24 hours.

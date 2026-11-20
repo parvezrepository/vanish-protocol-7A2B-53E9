@@ -11,6 +11,17 @@
 \usepackage{url}
 \usepackage{balance}
 
+% Float and caption spacing optimization for strict 6-page IEEE format
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.85}
+\setlength{\textfloatsep}{5pt plus 1.0pt minus 1.0pt}
+\setlength{\floatsep}{4pt plus 1.0pt minus 1.0pt}
+\setlength{\intextsep}{4pt plus 1.0pt minus 1.0pt}
+\setlength{\abovecaptionskip}{3pt}
+\setlength{\belowcaptionskip}{2pt}
+
 \begin{document}
 
 \title{VANISH: Design and Implementation of a Cross-Platform, Cryptographically Verifiable Self-Expiring Digital File Protocol}

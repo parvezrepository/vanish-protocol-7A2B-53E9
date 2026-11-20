@@ -1,59 +1,57 @@
 \section{VANISH Protocol Architecture}
 \label{sec:protocol}
 
-The VANISH protocol consists of two primary components: a portable binary container specification (\texttt{.vfile}) and an operating system lifecycle enforcement service.
+The VANISH protocol comprises a portable binary container specification (\texttt{.vfile}) and an operating system lifecycle enforcement service.
 
-\subsection{Binary Container Layout and Overhead Bounds}
-A \texttt{.vfile} container begins with a fixed binary framing segment totaling exactly $140$\,bytes, followed by variable-length authenticated segments:
+\subsection{Binary Container Layout and Framing Bounds}
+A \texttt{.vfile} container initiates with a fixed binary framing segment of exactly $140$\,bytes, followed by variable-length authenticated segments:
 \begin{enumerate}
-    \item \textbf{Fixed Header (32 bytes):} Encodes magic bytes (\texttt{VAN1}), protocol version ($1$), cryptographic capability flags, and big-endian segment lengths.
+    \item \textbf{Fixed Header (32 bytes):} Magic bytes (\texttt{VAN1}), protocol version ($1$), capability flags, and segment length headers.
     \item \textbf{Public Key (32 bytes):} The Ed25519 public key of the issuing sender.
-    \item \textbf{AEAD Nonce (12 bytes):} The 96-bit initialization vector for AES-256-GCM encryption (zero-padded if unencrypted).
+    \item \textbf{AEAD Nonce (12 bytes):} The 96-bit IV for AES-256-GCM (zero-padded if unencrypted).
     \item \textbf{Digital Signature (64 bytes):} Detached Ed25519 signature covering the unified cryptographic preimage.
-    \item \textbf{Manifest Segment:} Canonical CBOR (RFC 8949) map encoding file metadata, MIME type, issuance time $t_{\text{iss}}$, expiration timestamp $t_{\text{exp}}$, policy action, and optional recipient key encapsulations. Manifests are bounded to a maximum length of $4096$\,bytes, with filename strings truncated to $\le 255$ UTF-8 bytes. In evaluated samples, this segment spans $180$--$289$\,bytes.
-    \item \textbf{Payload Segment:} The raw payload or AES-256-GCM ciphertext with appended 16-byte authentication tag.
+    \item \textbf{Manifest Segment:} Canonical CBOR (RFC 8949) map encoding MIME type, issuance time $t_{\text{iss}}$, expiration timestamp $t_{\text{exp}}$, policy action, and optional recipient key encapsulations. Manifests are bounded to $\le 4096$\,bytes with filename strings capped at $255$ bytes ($180$--$289$\,bytes in evaluated samples).
+    \item \textbf{Payload Segment:} Raw payload bytes or AES-256-GCM ciphertext with appended 16-byte authentication tag.
 \end{enumerate}
 
-Thus, total container framing overhead is strictly bounded:
+Total container framing overhead $\Omega_{\text{overhead}}$ is strictly bounded:
 \begin{equation}
     \Omega_{\text{overhead}} = 140 + |\text{Manifest}_{\text{CBOR}}| \quad (320 \le \Omega_{\text{overhead}} \le 4236 \text{ bytes})
 \end{equation}
-In standard office and multimedia documents, $\Omega_{\text{overhead}}$ averages $320$--$429$\,bytes.
+In standard documents, $\Omega_{\text{overhead}}$ averages $320$--$429$\,bytes.
 
-\subsection{Cryptographic Integrity Binding and Key Distribution}
-To ensure that an attacker cannot alter flags, replace the manifest, or extend the expiration date, the signature covers a unified cryptographic preimage:
+\subsection{Cryptographic Binding and Key Distribution}
+To prevent tampering with expiration policies or flags, the signature binds a unified cryptographic preimage:
 \begin{equation}
     \mathcal{M} = \text{Header}_{0:26} \mathbin{\Vert} \text{PubKey} \mathbin{\Vert} \text{Nonce} \mathbin{\Vert} \text{Manifest}_{\text{CBOR}} \mathbin{\Vert} \mathcal{H}(\text{Payload})
 \end{equation}
-where $\mathcal{H}$ represents SHA-256. The sender computes the digital signature $\sigma$ as:
+where $\mathcal{H}$ denotes SHA-256. The sender computes signature $\sigma$:
 \begin{equation}
     \sigma = \text{Ed25519\_Sign}(\text{SK}_{\text{Sender}}, \mathcal{H}(\mathcal{M}))
 \end{equation}
-Because the signature binds the first 26 bytes of the header, the public key, the nonce, the canonical CBOR manifest, and the payload hash, any change to timestamps, policy flags, or file content will cause verification to fail.
+Because the signature binds the first 26 header bytes, public key, nonce, canonical manifest, and payload hash, any modification to timestamps or flags causes verification to fail.
 
-\textbf{Key Distribution via HPKE:} In Tier 2 (Encrypted Mode), payload confidentiality across untrusted networks is achieved via hybrid envelope encryption (RFC 9180 HPKE)~\cite{rfc9180hpke}. The sender generates an ephemeral Content Encryption Key ($K_{\text{CEK}} \leftarrow \mathcal{K}_{\text{AES-256}}$) and encrypts the payload via AES-256-GCM. The sender then encapsulates $K_{\text{CEK}}$ using the recipient's public key ($\text{PK}_{\text{Recv}}$):
+\textbf{Key Distribution via HPKE:} In Tier 2, confidentiality across untrusted channels uses hybrid envelope encryption (RFC 9180 HPKE)~\cite{rfc9180hpke}. The sender generates an ephemeral Content Encryption Key ($K_{\text{CEK}} \leftarrow \mathcal{K}_{\text{AES-256}}$), encrypts the payload, and encapsulates $K_{\text{CEK}}$ under the recipient's public key ($\text{PK}_{\text{Recv}}$):
 \begin{equation}
     C_{\text{key}} = \text{HPKE\_Seal}(\text{PK}_{\text{Recv}}, K_{\text{CEK}})
 \end{equation}
-The encapsulated key $C_{\text{key}}$ is placed inside the CBOR manifest under an authorized recipient map. Upon ingestion, the recipient's OS daemon un-encapsulates $K_{\text{CEK}}$ using the host private key securely held within the hardware keystore (ARM TrustZone or TPM 2.0) and imports it into the keystore tagged with the container's unique \texttt{file\_id}. Volatile memory buffers holding $K_{\text{CEK}}$ are immediately overwritten with zeros.
+The encapsulated key is placed in the CBOR manifest. Upon ingestion, the recipient's OS daemon un-encapsulates $K_{\text{CEK}}$ using the host private key within the hardware keystore (ARM TrustZone / TPM 2.0) and registers it tagged with the container's \texttt{file\_id}. Volatile memory buffers holding $K_{\text{CEK}}$ are immediately scrubbed.
 
 \subsection{Formal Security Reductions}
-We formalize the security guarantees of the protocol under standard cryptographic assumptions:
-
 \newtheorem{theorem}{Theorem}
 
 \begin{theorem}[Manifest Unforgeability]
-Assuming Ed25519 is Existentially Unforgeable under Chosen Message Attacks (EUF-CMA) and SHA-256 is collision resistant, no probabilistic polynomial-time (PPT) adversary $\mathcal{A}$ without the private key $\text{SK}_{\text{Sender}}$ can construct a forged container $\mathcal{C}'$ with an altered expiration timestamp $t'_{\text{exp}} > t_{\text{exp}}$ that is accepted by an authorized verifier pinned to $\text{PK}_{\text{Sender}}$, except with negligible probability $\text{negl}(\lambda)$.
+Assuming Ed25519 is EUF-CMA secure and SHA-256 is collision resistant, no PPT adversary $\mathcal{A}$ without $\text{SK}_{\text{Sender}}$ can forge an altered expiration timestamp $t'_{\text{exp}} > t_{\text{exp}}$ accepted by a verifier pinned to $\text{PK}_{\text{Sender}}$, except with negligible probability $\text{negl}(\lambda)$.
 \end{theorem}
 
 \begin{IEEEproof}
-Suppose $\mathcal{A}$ produces a modified container $\mathcal{C}'$ with manifest $\text{Manifest}'$ containing $t'_{\text{exp}} \ne t_{\text{exp}}$. By canonical CBOR serialization, $\text{Manifest}' \ne \text{Manifest}$, yielding preimage $\mathcal{M}' \ne \mathcal{M}$. By the collision resistance of SHA-256, $\mathcal{H}(\mathcal{M}') = \mathcal{H}(\mathcal{M})$ occurs with probability at most $\text{negl}(\lambda)$. Thus, for $\mathcal{C}'$ to be accepted, $\mathcal{A}$ must output a valid signature $\sigma'$ on a fresh message $\mathcal{H}(\mathcal{M}')$ under $\text{PK}_{\text{Sender}}$. Any PPT adversary that succeeds with non-negligible advantage can be directly reduced to an algorithm breaking the EUF-CMA security of Ed25519.
+If $\mathcal{A}$ modifies $t_{\text{exp}}$ to $t'_{\text{exp}}$, the canonical CBOR manifest changes, yielding preimage $\mathcal{M}' \ne \mathcal{M}$. By SHA-256 collision resistance, $\mathcal{H}(\mathcal{M}') = \mathcal{H}(\mathcal{M})$ occurs with probability $\le \text{negl}(\lambda)$. Producing a valid signature $\sigma'$ on $\mathcal{H}(\mathcal{M}')$ under $\text{PK}_{\text{Sender}}$ without $\text{SK}_{\text{Sender}}$ reduces directly to breaking the EUF-CMA security of Ed25519.
 \end{IEEEproof}
 
 \begin{theorem}[Conditional Post-Expiry Confidentiality]
-In Tier 2, assuming: (i) $K_{\text{CEK}}$ was not exfiltrated prior to $t_{\text{exp}}$, (ii) ephemeral session keys are zeroized from host memory, and (iii) the hardware keystore irreversibly purges $K_{\text{CEK}}$ when $t \ge t_{\text{exp}}$, any PPT adversary $\mathcal{A}$ inspecting physical storage remnants has negligible advantage in recovering the plaintext payload under the IND-CCA2 security of AES-256-GCM.
+In Tier 2, assuming $K_{\text{CEK}}$ was not exfiltrated prior to $t_{\text{exp}}$, volatile session keys are zeroized, and the hardware keystore purges $K_{\text{CEK}}$ at $t \ge t_{\text{exp}}$, any PPT adversary $\mathcal{A}$ inspecting physical storage remnants has negligible advantage in recovering plaintext under the IND-CCA2 security of AES-256-GCM.
 \end{theorem}
 
 \begin{IEEEproof}
-Upon reaching $t \ge t_{\text{exp}}$, the host keystore purges $K_{\text{CEK}}$ via hardware-backed register zeroization. Under the assumption that volatile memory was scrubbed and $K_{\text{CEK}}$ was never exported, an adversary possessing post-expiry storage remnants (including uncollected flash blocks) observes only ciphertext $C$ and nonce $N$. Since $K_{\text{CEK}}$ is uniformly distributed in $\{0, 1\}^{256}$ and inaccessible, recovering any bit of plaintext reduces directly to distinguishing AES-256-GCM ciphertexts without the key, where $\mathbf{Adv}^{\text{IND-CCA2}}_{\text{AES-GCM}}(\mathcal{A}) \le \text{negl}(\lambda)$.
+At $t \ge t_{\text{exp}}$, the keystore permanently purges $K_{\text{CEK}}$ via register zeroization. Since volatile buffers were scrubbed, an adversary possessing storage remnants observes only ciphertext $C$ and nonce $N$. Recovering plaintext without $K_{\text{CEK}}$ reduces to distinguishing AES-256-GCM ciphertexts, where $\mathbf{Adv}^{\text{IND-CCA2}}_{\text{AES-GCM}}(\mathcal{A}) \le \text{negl}(\lambda)$.
 \end{IEEEproof}

@@ -1,39 +1,31 @@
 \section{Threat Model and Security Tiers}
 \label{sec:threat_model}
 
-To define what VANISH protects and where its limits lie, we state our adversary model, core assumptions, and operational tiers.
+To define operational guarantees and security boundaries, we formalize our adversary model, core assumptions, and operational tiers.
 
 \subsection{Adversary Model}
-We assume a computationally bounded adversary $\mathcal{A}$ with standard polynomial-time computing resources. The adversary may attempt the following actions:
+We assume a computationally bounded polynomial-time adversary $\mathcal{A}$ attempting:
 \begin{enumerate}
-    \item \textbf{Network Interception:} $\mathcal{A}$ observes, intercepts, replays, or modifies \texttt{.vfile} containers in transit over untrusted networks.
-    \item \textbf{Manifest Tampering:} $\mathcal{A}$ alters bytes in the container on disk—such as changing the expiration timestamp $t_{\text{exp}}$, file identifiers, or policy flags—to prevent the file from expiring.
-    \item \textbf{Clock Rollback:} A local user $\mathcal{A}$ sets the system wall clock backward (for example, setting the date back five years) to trick the enforcement engine into thinking the file is still active.
-    \item \textbf{Forensic Drive Carving:} $\mathcal{A}$ inspects physical or logical storage after the expiration time $t \ge t_{\text{exp}}$ using forensic carving tools to recover data from unallocated sectors or stale flash blocks~\cite{reardon2013sok}.
+    \item \textbf{Network Interception:} $\mathcal{A}$ observes, replays, or tampers with \texttt{.vfile} containers in transit across untrusted communication channels.
+    \item \textbf{Manifest Tampering:} $\mathcal{A}$ alters storage bytes—such as extending expiration timestamp $t_{\text{exp}}$ or toggling policy flags—to prevent automatic file expiration.
+    \item \textbf{Clock Rollback:} A local user $\mathcal{A}$ manipulates the system wall clock backward to trick the daemon into treating expired files as active.
+    \item \textbf{Forensic Drive Carving:} After expiration ($t \ge t_{\text{exp}}$), $\mathcal{A}$ executes low-level logical or physical flash block carving to reconstruct discarded data~\cite{reardon2013sok}.
 \end{enumerate}
 
 \subsection{Assumptions and Trust Anchors}
-We assume that the receiving device's operating system kernel is intact and enforces standard process isolation and access control policies (such as Linux file permissions and SEAndroid rules~\cite{smalley2013security}). We also assume standard cryptographic primitives are computationally secure: Ed25519 signatures cannot be forged without the private key (EUF-CMA security)~\cite{rfc8032ed25519}, SHA-256 is collision resistant, and AES-256-GCM provides authenticated confidentiality (IND-CCA2)~\cite{dworkin2007sp80038d}.
+We assume the receiving OS kernel enforces standard process isolation and access control policies (POSIX and SEAndroid~\cite{smalley2013security}). Standard cryptographic primitives are secure: Ed25519 signatures satisfy EUF-CMA security~\cite{rfc8032ed25519}, SHA-256 is collision resistant, and AES-256-GCM satisfies IND-CCA2 security~\cite{dworkin2007sp80038d}.
 
-\textbf{Trust Anchor Specification:} Self-signed or unvetted public keys embedded in a container do not imply sender authorization. We assume receiving operating systems maintain a local Trust Anchor Store (such as \texttt{/etc/vanish/trusted\_keys} on Linux, or the hardware-backed Android KeyStore / Enterprise MDM trust pool). Signature verification requires matching the embedded Ed25519 public key fingerprint against this pinned trust store. Containers originating from unpinned keys are treated as untrusted and require explicit user attestation.
+\textbf{Trust Anchor Specification:} Self-signed or unpinned keys embedded in a container do not imply authorization. Receiving operating systems maintain a local Trust Anchor Store (\texttt{/etc/vanish/trusted\_keys} on Linux, or the hardware-backed Android KeyStore / Enterprise MDM pool). Verification requires matching the embedded Ed25519 public key fingerprint against this local trust store; unpinned containers require explicit interactive user attestation.
 
-\textbf{Key Distribution Assumption:} In encrypted workflows (Tier 2), the sender wraps the symmetric Content Encryption Key (CEK) under the recipient's public key using standard Hybrid Public Key Encryption (HPKE, RFC 9180)~\cite{rfc9180hpke}. The recipient operating system manages the corresponding private key within a hardware Secure Element or Trusted Execution Environment (TEE). We assume the CEK is never deliberately leaked or exported outside this hardware boundary by the recipient prior to expiration.
+\textbf{Key Distribution Assumption:} In encrypted workflows (Tier 2), the sender encapsulates the symmetric Content Encryption Key (CEK) under the recipient's public key using RFC 9180 HPKE~\cite{rfc9180hpke}. The recipient OS manages the corresponding private key within a hardware Secure Element or TEE, and the CEK is never exported outside this boundary prior to expiration.
 
-\subsection{Three Operational Security Tiers}
-Because different deployments require different trade-offs between performance and security, VANISH supports three operational levels:
-
-\subsubsection{Tier 1: Cooperative Hygiene (Consumer & Enterprise Use)}
-Here the main goal is preventing data accumulation and complying with privacy rules like GDPR Article 17~\cite{gdpr2016}. The recipient is not actively trying to defeat the system; they simply use their device normally. The OS daemon reads the signed manifest, tracks the expiration timestamp, and unlinks the file when its time expires.
-
-\subsubsection{Tier 2: OS-Sandboxed Key Erasure (Crypto-Shredding)}
-For sensitive documents on devices with solid-state or flash storage, the payload is encrypted with AES-256-GCM. The decryption key $K$ is kept in the operating system's secure keystore (backed by ARM TrustZone~\cite{armtrustzone} or TPM 2.0~\cite{tpm20specification}). When the file expires, the OS daemon zeroes out $K$ in memory and deletes it from the keystore. Even if stale ciphertext pages remain in physical flash cells due to FTL wear-leveling~\cite{wei2011reliably}, the data cannot be decrypted.
-
-\subsubsection{Tier 3: Hardware Monotonic Clock Protection}
-To prevent offline clock rollback, Tier 3 validates the current time using:
-\begin{enumerate}
-    \item \textbf{Hardware Monotonic Counters:} Non-decrementable hardware counters, such as the Replay Protected Memory Block (RPMB) in eMMC/UFS flash or TPM 2.0 NV counters~\cite{tpm20specification}.
-    \item \textbf{Authenticated Time Sync:} When network access is available, the daemon checks timestamps using Network Time Security (NTS, RFC 8915)~\cite{rfc8915nts} or Roughtime cryptographic attestations~\cite{roughtime2018}.
-\end{enumerate}
+\subsection{Operational Security Tiers}
+VANISH provides three operational tiers balancing security and performance:
+\begin{itemize}
+    \item \textbf{Tier 1: Cooperative Hygiene (Consumer / Enterprise):} Targets automated compliance (e.g., GDPR Art. 17) where users do not actively attack endpoints. The OS daemon verifies the signed manifest, tracks deadlines, and unlinks files at $t \ge t_{\text{exp}}$.
+    \item \textbf{Tier 2: OS-Sandboxed Key Erasure (Crypto-Shredding):} For sensitive documents on flash media, payloads are encrypted with AES-256-GCM. The CEK is stored in the hardware keystore (ARM TrustZone~\cite{armtrustzone} or TPM 2.0~\cite{tpm20specification}). At $t \ge t_{\text{exp}}$, the OS zeros volatile key buffers and purges the key from the keystore, rendering residual flash ciphertext mathematically unrecoverable despite FTL wear-leveling~\cite{wei2011reliably}.
+    \item \textbf{Tier 3: Hardware Monotonic Protection:} Defends against local clock rollback using non-decrementable hardware counters (eMMC/UFS RPMB blocks or TPM 2.0 NV counters~\cite{tpm20specification}) alongside Network Time Security (NTS, RFC 8915)~\cite{rfc8915nts} or Roughtime attestations~\cite{roughtime2018}.
+\end{itemize}
 
 \subsection{System Boundaries}
-VANISH does not prevent an authorized recipient from taking a physical photograph of their display screen (the analog hole) or manually copying plaintext bytes while the file is currently open and valid. Like other privacy systems, VANISH focuses on the lifecycle of the managed file on storage, ensuring that files do not remain on disks indefinitely through neglect or forgotten downloads.
+VANISH cannot prevent an authorized user from photographing an active display (the analog hole) or copying plaintext while the file is currently valid. VANISH focuses on automated storage lifecycle governance, preventing indefinite data retention from device neglect or forgotten downloads.
