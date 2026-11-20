@@ -28,14 +28,8 @@
 \setlength{\abovedisplayshortskip}{2pt plus 1pt}
 \setlength{\belowdisplayshortskip}{2pt plus 1pt}
 
-% Compact bibliography hook
-\let\oldbibliography\thebibliography
-\renewcommand{\thebibliography}[1]{%
-  \oldbibliography{#1}%
-  \setlength{\itemsep}{0.4pt plus 0.2pt minus 0.2pt}%
-  \setlength{\parsep}{0pt}%
-  \setlength{\parskip}{0pt}%
-}
+% IEEEtran native compact bibliography spacing
+\def\IEEEbibitemsep{0.5pt plus 0.3pt minus 0.2pt}
 
 \begin{document}
 
@@ -67,8 +61,6 @@ Data Privacy, Ephemeral Files, File Systems, Applied Cryptography, Operating Sys
 \input{sections/07_discussion_conclusion}
 
 \bibliographystyle{IEEEtran}
-{\footnotesize
 \bibliography{references}
-}
 
 \end{document}
