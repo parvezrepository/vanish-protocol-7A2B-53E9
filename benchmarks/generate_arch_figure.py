@@ -3,74 +3,76 @@ Ensures labels never collide with arrows or boxes, and borders are fully padded
 to prevent any clipping at the bottom border.
 """
 
+from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from pathlib import Path
+
 
 def draw_compact_architecture(out_path: Path) -> None:
-    # 3.4 inches wide by 3.8 inches high (compact for IEEE single column)
-    fig, ax = plt.subplots(figsize=(3.4, 3.8), dpi=300)
+    fig, ax = plt.subplots(figsize=(3.4, 4.0), dpi=300)
     ax.set_xlim(-0.2, 10.2)
-    ax.set_ylim(-0.5, 10.7)
+    ax.set_ylim(-0.35, 10.6)
     ax.axis("off")
+
+    sans_font = {"fontfamily": "DejaVu Sans"}
 
     color_app = "#f0f7fa"
     color_kernel = "#e8f1f8"
     color_daemon = "#fef6ed"
     color_purge = "#fdf0ed"
-    border = "#334155"
+    border_col = "#334155"
+    kw = dict(boxstyle="round,pad=0.22", edgecolor=border_col, linewidth=1.1)
 
-    box_kw = dict(boxstyle="round,pad=0.25", edgecolor=border, linewidth=1.1)
-
-    # Box 1: Client Apps (y: 8.9 to 10.1)
-    rect1 = patches.FancyBboxPatch((0.5, 8.9), 9.0, 1.2, facecolor=color_app, **box_kw)
+    # Box 1: User Space Apps
+    rect1 = patches.FancyBboxPatch((0.5, 8.90), 9.0, 1.25, facecolor=color_app, **kw)
     ax.add_patch(rect1)
-    ax.text(5.0, 9.65, "User Space / Client Applications", ha="center", va="center", fontsize=8.0, fontweight="bold", color="#0f172a")
-    ax.text(5.0, 9.15, "(Files by Google, Nautilus, Shell, Browser)", ha="center", va="center", fontsize=6.8, color="#475569")
+    ax.text(5.0, 9.72, "User Space / Client Applications", ha="center", va="center", fontsize=7.6, fontweight="bold", color="#0f172a", **sans_font)
+    ax.text(5.0, 9.24, "(Files by Google, Nautilus, Shell, Browser)", ha="center", va="center", fontsize=6.3, color="#475569", **sans_font)
 
-    # Arrow 1 -> 2 (from y=8.9 to y=7.8)
-    ax.annotate("", xy=(3.0, 7.8), xytext=(3.0, 8.9), arrowprops=dict(arrowstyle="-|>", lw=1.1, color="#334155"))
-    ax.text(3.4, 8.35, "Storage Interception", ha="left", va="center", fontsize=6.5, fontstyle="italic", color="#334155",
-            bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none", alpha=0.9))
+    # Arrow 1 -> 2
+    ax.annotate("", xy=(3.0, 7.65), xytext=(3.0, 8.90), arrowprops=dict(arrowstyle="-|>", lw=1.1, color="#334155"))
+    ax.text(3.3, 8.28, "Storage Interception", ha="left", va="center", fontsize=6.3, fontstyle="italic", color="#334155",
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="#cbd5e1", lw=0.6), **sans_font)
 
-    # Box 2: Kernel Ingestion (y: 6.6 to 7.8)
-    rect2 = patches.FancyBboxPatch((0.5, 6.6), 9.0, 1.2, facecolor=color_kernel, **box_kw)
+    # Box 2: Kernel Ingestion
+    rect2 = patches.FancyBboxPatch((0.5, 6.40), 9.0, 1.25, facecolor=color_kernel, **kw)
     ax.add_patch(rect2)
-    ax.text(5.0, 7.35, "Kernel & Storage Ingestion Layer", ha="center", va="center", fontsize=8.0, fontweight="bold", color="#0f172a")
-    ax.text(5.0, 6.85, "(Linux fanotify / AOSP ModernMediaScanner)", ha="center", va="center", fontsize=6.8, color="#475569")
+    ax.text(5.0, 7.22, "Kernel & Storage Ingestion Layer", ha="center", va="center", fontsize=7.6, fontweight="bold", color="#0f172a", **sans_font)
+    ax.text(5.0, 6.74, "(Linux fanotify / AOSP ModernMediaScanner)", ha="center", va="center", fontsize=6.3, color="#475569", **sans_font)
 
-    # Arrow 2 -> 3 (from y=6.6 to y=5.4)
-    ax.annotate("", xy=(3.0, 5.4), xytext=(3.0, 6.6), arrowprops=dict(arrowstyle="-|>", lw=1.1, color="#334155"))
-    ax.text(3.4, 6.0, "AIDL IPC / fanotify event", ha="left", va="center", fontsize=6.5, fontstyle="italic", color="#334155",
-            bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none", alpha=0.9))
+    # Arrow 2 -> 3
+    ax.annotate("", xy=(3.0, 5.15), xytext=(3.0, 6.40), arrowprops=dict(arrowstyle="-|>", lw=1.1, color="#334155"))
+    ax.text(3.3, 5.78, "AIDL IPC / fanotify event", ha="left", va="center", fontsize=6.3, fontstyle="italic", color="#334155",
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="#cbd5e1", lw=0.6), **sans_font)
 
-    # Box 3: Daemon (y: 3.1 to 5.4)
-    rect3 = patches.FancyBboxPatch((0.5, 3.1), 9.0, 2.3, facecolor=color_daemon, **box_kw)
+    # Box 3: Daemon Engine
+    rect3 = patches.FancyBboxPatch((0.5, 2.60), 9.0, 2.55, facecolor=color_daemon, **kw)
     ax.add_patch(rect3)
-    ax.text(5.0, 5.05, "VANISH Lifecycle Enforcement Engine", ha="center", va="center", fontsize=8.0, fontweight="bold", color="#0f172a")
-    ax.text(5.0, 4.65, "(Linux vanishd / AOSP VanishManagerService)", ha="center", va="center", fontsize=7.0, color="#1e293b")
-    ax.text(5.0, 4.15, "• Thread-Safe Min-Heap Priority Queue", ha="center", va="center", fontsize=6.6, color="#334155")
-    ax.text(5.0, 3.75, "• Ed25519 & Canonical CBOR Verification", ha="center", va="center", fontsize=6.6, color="#334155")
-    ax.text(5.0, 3.35, "• Doze-Resilient AlarmManager / timerfd", ha="center", va="center", fontsize=6.6, color="#334155")
+    ax.text(5.0, 4.75, "VANISH Lifecycle Enforcement Engine", ha="center", va="center", fontsize=7.3, fontweight="bold", color="#0f172a", **sans_font)
+    ax.text(5.0, 4.35, "(Linux vanishd / AOSP VanishManagerService)", ha="center", va="center", fontsize=6.2, color="#1e293b", **sans_font)
+    ax.text(5.0, 3.82, "• Min-Heap Deadline Priority Queue", ha="center", va="center", fontsize=6.0, color="#334155", **sans_font)
+    ax.text(5.0, 3.42, "• Ed25519 & Canonical CBOR Verification", ha="center", va="center", fontsize=6.0, color="#334155", **sans_font)
+    ax.text(5.0, 3.02, "• Doze-Resilient AlarmManager / timerfd", ha="center", va="center", fontsize=6.0, color="#334155", **sans_font)
 
-    # Arrow 3 -> 4 (from y=3.1 to y=2.2)
-    ax.annotate("", xy=(3.0, 2.2), xytext=(3.0, 3.1), arrowprops=dict(arrowstyle="-|>", lw=1.1, color="#b91c1c"))
-    ax.text(3.4, 2.65, "t >= t_exp (Deadline Fired)", ha="left", va="center", fontsize=6.5, fontweight="bold", color="#b91c1c",
-            bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none", alpha=0.9))
+    # Arrow 3 -> 4
+    ax.annotate("", xy=(3.0, 1.35), xytext=(3.0, 2.60), arrowprops=dict(arrowstyle="-|>", lw=1.2, color="#b91c1c"))
+    ax.text(3.3, 1.98, "t \u2265 t_exp (Deadline Fired)", ha="left", va="center", fontsize=6.4, fontweight="bold", color="#b91c1c",
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="#fecaca", lw=0.6), **sans_font)
 
-    # Box 4: Purge Engine (y: 0.70 to 2.20 - ample margin above y=-0.5)
-    rect4 = patches.FancyBboxPatch((0.5, 0.70), 9.0, 1.5, facecolor=color_purge, **box_kw)
+    # Box 4: Purge & Shred Engine
+    rect4 = patches.FancyBboxPatch((0.5, -0.05), 9.0, 1.40, facecolor=color_purge, **kw)
     ax.add_patch(rect4)
-    ax.text(5.0, 1.85, "Lifecycle Purge & Shred Engine", ha="center", va="center", fontsize=8.0, fontweight="bold", color="#991b1b")
-    ax.text(5.0, 1.45, "• Multi-Pass Overwrite (Magnetic / Loopback)", ha="center", va="center", fontsize=6.6, color="#334155")
-    ax.text(5.0, 1.05, "• Keystore AES Key Erasure (Crypto-Shred Flash)", ha="center", va="center", fontsize=6.6, color="#334155")
+    ax.text(5.0, 1.00, "Lifecycle Purge & Shred Engine", ha="center", va="center", fontsize=7.4, fontweight="bold", color="#991b1b", **sans_font)
+    ax.text(5.0, 0.62, "• PRNG Multi-Pass Shred (Magnetic Disk)", ha="center", va="center", fontsize=6.0, color="#334155", **sans_font)
+    ax.text(5.0, 0.26, "• Hardware Keystore Key Erasure (Flash)", ha="center", va="center", fontsize=6.0, color="#334155", **sans_font)
 
-    fig.savefig(out_path.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.12)
-    fig.savefig(out_path.with_suffix(".png"), bbox_inches="tight", pad_inches=0.12, dpi=300)
+    fig.savefig(out_path.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.10)
+    fig.savefig(out_path.with_suffix(".png"), bbox_inches="tight", pad_inches=0.10, dpi=300)
     plt.close()
-    print(f"[+] Clean, perfectly padded architecture figure generated at: {out_path.with_suffix('.pdf')}")
+    print(f"[+] Architecture figure generated: {out_path.with_suffix('.pdf')}")
+
 
 if __name__ == "__main__":
     out_dir = Path("paper/figures")

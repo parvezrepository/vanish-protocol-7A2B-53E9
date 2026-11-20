@@ -1,6 +1,6 @@
 """Generates all 4 publication-grade, vector-quality figures for the VANISH IEEE paper.
-Engineered to exact IEEE single-column dimensions (width 3.4-3.5 inches),
-ensuring high-contrast, crystal-clear typography matching 9-10pt body font.
+Engineered to exact IEEE single-column dimensions, ensuring high-contrast, crystal-clear typography,
+zero text collision, zero label overlap, and pristine publication aesthetics.
 """
 
 from pathlib import Path
@@ -10,181 +10,192 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 
-# Global IEEE Typography Settings
-plt.rcParams.update({
+FIG_DIR = Path("paper/figures")
+FIG_DIR.mkdir(parents=True, exist_ok=True)
+
+# Academic serif typography for plots matching IEEE conference body text
+SERIF_RC = {
     "font.family": "serif",
     "font.serif": ["DejaVu Serif", "Times New Roman", "Computer Modern Roman"],
-    "font.size": 8.5,
+    "font.size": 8.0,
     "axes.labelsize": 8.5,
     "axes.labelweight": "bold",
     "axes.titlesize": 9.0,
     "axes.titleweight": "bold",
-    "xtick.labelsize": 7.8,
-    "ytick.labelsize": 7.8,
-    "legend.fontsize": 7.5,
-    "figure.titlesize": 9.5,
-    "lines.linewidth": 1.6,
-    "lines.markersize": 5.0,
-})
-
-FIG_DIR = Path("paper/figures")
-FIG_DIR.mkdir(parents=True, exist_ok=True)
+    "xtick.labelsize": 7.5,
+    "ytick.labelsize": 7.5,
+    "legend.fontsize": 7.2,
+}
 
 
 def generate_fig1_architecture(out_path: Path) -> None:
-    """Generate high-clarity OS enforcement architecture diagram."""
-    fig, ax = plt.subplots(figsize=(3.4, 3.8), dpi=300)
+    """Generate high-clarity OS enforcement architecture diagram.
+    Uses clean sans-serif typography with generous internal padding so text never touches borders.
+    """
+    fig, ax = plt.subplots(figsize=(3.4, 4.0), dpi=300)
     ax.set_xlim(-0.2, 10.2)
-    ax.set_ylim(-0.5, 10.7)
+    ax.set_ylim(-0.35, 10.6)
     ax.axis("off")
+
+    sans_font = {"fontfamily": "DejaVu Sans"}
 
     color_app = "#f0f7fa"
     color_kernel = "#e8f1f8"
     color_daemon = "#fef6ed"
     color_purge = "#fdf0ed"
-    border = "#1e293b"
+    border_col = "#334155"
+    kw = dict(boxstyle="round,pad=0.22", edgecolor=border_col, linewidth=1.1)
 
-    box_kw = dict(boxstyle="round,pad=0.22", edgecolor=border, linewidth=1.1)
-
-    # Box 1: Client Apps
-    rect1 = patches.FancyBboxPatch((0.5, 8.9), 9.0, 1.2, facecolor=color_app, **box_kw)
+    # Box 1: User Space Apps
+    rect1 = patches.FancyBboxPatch((0.5, 8.90), 9.0, 1.25, facecolor=color_app, **kw)
     ax.add_patch(rect1)
-    ax.text(5.0, 9.68, "User Space / Client Applications", ha="center", va="center", fontsize=8.2, fontweight="bold", color="#0f172a")
-    ax.text(5.0, 9.18, "(Files by Google, Nautilus, Shell, Browser)", ha="center", va="center", fontsize=7.2, color="#334155")
+    ax.text(5.0, 9.72, "User Space / Client Applications", ha="center", va="center", fontsize=7.6, fontweight="bold", color="#0f172a", **sans_font)
+    ax.text(5.0, 9.24, "(Files by Google, Nautilus, Shell, Browser)", ha="center", va="center", fontsize=6.3, color="#475569", **sans_font)
 
     # Arrow 1 -> 2
-    ax.annotate("", xy=(3.0, 7.8), xytext=(3.0, 8.9), arrowprops=dict(arrowstyle="-|>", lw=1.1, color="#1e293b"))
-    ax.text(3.4, 8.35, "Storage Interception", ha="left", va="center", fontsize=7.0, fontstyle="italic", color="#1e293b",
-            bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none", alpha=0.9))
+    ax.annotate("", xy=(3.0, 7.65), xytext=(3.0, 8.90), arrowprops=dict(arrowstyle="-|>", lw=1.1, color="#334155"))
+    ax.text(3.3, 8.28, "Storage Interception", ha="left", va="center", fontsize=6.3, fontstyle="italic", color="#334155",
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="#cbd5e1", lw=0.6), **sans_font)
 
     # Box 2: Kernel Ingestion
-    rect2 = patches.FancyBboxPatch((0.5, 6.6), 9.0, 1.2, facecolor=color_kernel, **box_kw)
+    rect2 = patches.FancyBboxPatch((0.5, 6.40), 9.0, 1.25, facecolor=color_kernel, **kw)
     ax.add_patch(rect2)
-    ax.text(5.0, 7.38, "Kernel & Storage Ingestion Layer", ha="center", va="center", fontsize=8.2, fontweight="bold", color="#0f172a")
-    ax.text(5.0, 6.88, "(Linux fanotify / AOSP ModernMediaScanner)", ha="center", va="center", fontsize=7.2, color="#334155")
+    ax.text(5.0, 7.22, "Kernel & Storage Ingestion Layer", ha="center", va="center", fontsize=7.6, fontweight="bold", color="#0f172a", **sans_font)
+    ax.text(5.0, 6.74, "(Linux fanotify / AOSP ModernMediaScanner)", ha="center", va="center", fontsize=6.3, color="#475569", **sans_font)
 
     # Arrow 2 -> 3
-    ax.annotate("", xy=(3.0, 5.4), xytext=(3.0, 6.6), arrowprops=dict(arrowstyle="-|>", lw=1.1, color="#1e293b"))
-    ax.text(3.4, 6.0, "AIDL IPC / fanotify event", ha="left", va="center", fontsize=7.0, fontstyle="italic", color="#1e293b",
-            bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none", alpha=0.9))
+    ax.annotate("", xy=(3.0, 5.15), xytext=(3.0, 6.40), arrowprops=dict(arrowstyle="-|>", lw=1.1, color="#334155"))
+    ax.text(3.3, 5.78, "AIDL IPC / fanotify event", ha="left", va="center", fontsize=6.3, fontstyle="italic", color="#334155",
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="#cbd5e1", lw=0.6), **sans_font)
 
-    # Box 3: Daemon
-    rect3 = patches.FancyBboxPatch((0.5, 3.1), 9.0, 2.3, facecolor=color_daemon, **box_kw)
+    # Box 3: Daemon Engine
+    rect3 = patches.FancyBboxPatch((0.5, 2.60), 9.0, 2.55, facecolor=color_daemon, **kw)
     ax.add_patch(rect3)
-    ax.text(5.0, 5.08, "VANISH Lifecycle Enforcement Engine", ha="center", va="center", fontsize=8.2, fontweight="bold", color="#0f172a")
-    ax.text(5.0, 4.68, "(Linux vanishd / AOSP VanishManagerService)", ha="center", va="center", fontsize=7.2, color="#1e293b")
-    ax.text(5.0, 4.18, "• Thread-Safe Min-Heap Priority Queue", ha="center", va="center", fontsize=7.0, color="#334155")
-    ax.text(5.0, 3.78, "• Ed25519 & Canonical CBOR Verification", ha="center", va="center", fontsize=7.0, color="#334155")
-    ax.text(5.0, 3.38, "• Doze-Resilient AlarmManager / timerfd", ha="center", va="center", fontsize=7.0, color="#334155")
+    ax.text(5.0, 4.75, "VANISH Lifecycle Enforcement Engine", ha="center", va="center", fontsize=7.3, fontweight="bold", color="#0f172a", **sans_font)
+    ax.text(5.0, 4.35, "(Linux vanishd / AOSP VanishManagerService)", ha="center", va="center", fontsize=6.2, color="#1e293b", **sans_font)
+    ax.text(5.0, 3.82, "• Min-Heap Deadline Priority Queue", ha="center", va="center", fontsize=6.0, color="#334155", **sans_font)
+    ax.text(5.0, 3.42, "• Ed25519 & Canonical CBOR Verification", ha="center", va="center", fontsize=6.0, color="#334155", **sans_font)
+    ax.text(5.0, 3.02, "• Doze-Resilient AlarmManager / timerfd", ha="center", va="center", fontsize=6.0, color="#334155", **sans_font)
 
     # Arrow 3 -> 4
-    ax.annotate("", xy=(3.0, 2.2), xytext=(3.0, 3.1), arrowprops=dict(arrowstyle="-|>", lw=1.2, color="#b91c1c"))
-    ax.text(3.4, 2.65, "t >= t_exp (Deadline Fired)", ha="left", va="center", fontsize=7.0, fontweight="bold", color="#b91c1c",
-            bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none", alpha=0.9))
+    ax.annotate("", xy=(3.0, 1.35), xytext=(3.0, 2.60), arrowprops=dict(arrowstyle="-|>", lw=1.2, color="#b91c1c"))
+    ax.text(3.3, 1.98, "t \u2265 t_exp (Deadline Fired)", ha="left", va="center", fontsize=6.4, fontweight="bold", color="#b91c1c",
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="#fecaca", lw=0.6), **sans_font)
 
-    # Box 4: Purge Engine
-    rect4 = patches.FancyBboxPatch((0.5, 0.70), 9.0, 1.5, facecolor=color_purge, **box_kw)
+    # Box 4: Purge & Shred Engine
+    rect4 = patches.FancyBboxPatch((0.5, -0.05), 9.0, 1.40, facecolor=color_purge, **kw)
     ax.add_patch(rect4)
-    ax.text(5.0, 1.88, "Lifecycle Purge & Shred Engine", ha="center", va="center", fontsize=8.2, fontweight="bold", color="#991b1b")
-    ax.text(5.0, 1.48, "• PRNG Multi-Pass Overwriting (Magnetic Media)", ha="center", va="center", fontsize=7.0, color="#334155")
-    ax.text(5.0, 1.08, "• Hardware Keystore Key Erasure (Flash Storage)", ha="center", va="center", fontsize=7.0, color="#334155")
+    ax.text(5.0, 1.00, "Lifecycle Purge & Shred Engine", ha="center", va="center", fontsize=7.4, fontweight="bold", color="#991b1b", **sans_font)
+    ax.text(5.0, 0.62, "• PRNG Multi-Pass Shred (Magnetic Disk)", ha="center", va="center", fontsize=6.0, color="#334155", **sans_font)
+    ax.text(5.0, 0.26, "• Hardware Keystore Key Erasure (Flash)", ha="center", va="center", fontsize=6.0, color="#334155", **sans_font)
 
     fig.savefig(out_path.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.10)
     fig.savefig(out_path.with_suffix(".png"), bbox_inches="tight", pad_inches=0.10, dpi=300)
     plt.close()
-    print(f"[+] Clean, vector architecture figure generated: {out_path.with_suffix('.pdf')}")
+    print(f"[+] Architecture figure generated: {out_path.with_suffix('.pdf')}")
 
 
 def generate_fig2_latency(out_path: Path) -> None:
     """Generate publication-grade latency vs payload size curve."""
+    plt.rcParams.update(SERIF_RC)
     sizes_kb = [1, 10, 100, 1024, 5120, 20480]
     pack_unenc = [0.93, 0.98, 1.12, 2.60, 10.42, 37.71]
     pack_enc = [0.90, 0.95, 1.12, 2.92, 12.18, 46.49]
     unpack = [0.65, 0.70, 0.81, 2.35, 10.85, 40.22]
 
-    fig, ax = plt.subplots(figsize=(3.4, 2.3), dpi=300)
+    fig, ax = plt.subplots(figsize=(3.5, 2.5), dpi=300)
+    ax.set_axisbelow(True)
 
-    ax.plot(sizes_kb, pack_unenc, "o-", label="Pack (Unencrypted)", color="#1a5276", markersize=4.8)
-    ax.plot(sizes_kb, pack_enc, "s--", label="Pack (AES-256-GCM)", color="#922b21", markersize=4.8)
-    ax.plot(sizes_kb, unpack, "^-.", label="Unpack & Verify", color="#196f3d", markersize=5.2)
+    ax.plot(sizes_kb, pack_unenc, "o-", label="Pack (Unencrypted)", color="#1e40af", linewidth=1.6, markersize=4.8)
+    ax.plot(sizes_kb, pack_enc, "s--", label="Pack (AES-256-GCM)", color="#b91c1c", linewidth=1.6, markersize=4.8)
+    ax.plot(sizes_kb, unpack, "^-.", label="Unpack & Verify", color="#047857", linewidth=1.6, markersize=5.2)
 
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("Payload Size (KB)", fontweight="bold")
-    ax.set_ylabel("Execution Latency (ms)", fontweight="bold")
-    ax.set_title("VANISH Latency vs. Payload Size", fontweight="bold", pad=5)
+    ax.set_xlabel("Payload Size (KB)")
+    ax.set_ylabel("Execution Latency (ms)")
+    ax.set_title("VANISH Latency vs. Payload Size", pad=6)
     ax.grid(True, which="major", ls="-", color="#e2e8f0", alpha=0.9, lw=0.6)
     ax.grid(True, which="minor", ls=":", color="#f1f5f9", alpha=0.7, lw=0.5)
     ax.legend(frameon=True, facecolor="white", edgecolor="#cbd5e1", framealpha=0.95, loc="upper left")
-    fig.tight_layout(pad=0.4)
 
-    fig.savefig(out_path.with_suffix(".pdf"))
-    fig.savefig(out_path.with_suffix(".png"), dpi=300)
+    fig.savefig(out_path.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.08)
+    fig.savefig(out_path.with_suffix(".png"), bbox_inches="tight", pad_inches=0.08, dpi=300)
     plt.close()
-    print(f"[+] Publication-grade Latency figure generated: {out_path.with_suffix('.pdf')}")
+    print(f"[+] Latency figure generated: {out_path.with_suffix('.pdf')}")
 
 
 def generate_fig3_comparative(out_path: Path) -> None:
-    """Generate publication-grade comparative baseline bar chart."""
-    systems = ["Raw AES-GCM", "Standard TAR", "Signed Env.", "VANISH (.vfile)"]
+    """Generate publication-grade comparative baseline bar chart with multi-line labels."""
+    plt.rcParams.update(SERIF_RC)
+    systems = ["Raw\nAES-GCM", "Standard\nTAR", "Signed\nEnvelope", "VANISH\n(.vfile)"]
     create_ms = [1.26, 0.85, 1.55, 2.92]
     extract_ms = [0.92, 0.90, 1.52, 2.35]
 
     x = np.arange(len(systems))
-    width = 0.35
+    width = 0.26
+    offset = 0.16
 
-    fig, ax = plt.subplots(figsize=(3.4, 2.3), dpi=300)
+    fig, ax = plt.subplots(figsize=(3.5, 2.5), dpi=300)
+    ax.set_axisbelow(True)
 
-    rects1 = ax.bar(x - width/2, create_ms, width, label="Packaging / Creation", color="#1b4f72", edgecolor="#0f2942", linewidth=0.7)
-    rects2 = ax.bar(x + width/2, extract_ms, width, label="Unpack & Verification", color="#196f3d", edgecolor="#0e4324", linewidth=0.7)
+    rects1 = ax.bar(x - offset, create_ms, width, label="Packaging / Creation", color="#1a365d", edgecolor="#0f172a", linewidth=0.8)
+    rects2 = ax.bar(x + offset, extract_ms, width, label="Unpack & Verify", color="#065f46", edgecolor="#022c22", linewidth=0.8)
 
-    ax.set_ylabel("Latency (ms) for 1MB", fontweight="bold")
-    ax.set_title("1MB Payload Baseline Comparison", fontweight="bold", pad=5)
+    ax.set_ylabel("Latency (ms) for 1MB Payload")
+    ax.set_title("1MB Payload Baseline Comparison", pad=6)
     ax.set_xticks(x)
-    ax.set_xticklabels(systems, fontsize=7.2, fontweight="bold")
+    ax.set_xticklabels(systems, fontweight="bold")
     ax.legend(frameon=True, facecolor="white", edgecolor="#cbd5e1", framealpha=0.95, loc="upper left")
     ax.grid(axis="y", ls="--", color="#e2e8f0", alpha=0.8, lw=0.6)
-    ax.set_ylim(0, 3.65)
+    ax.set_ylim(0, 3.8)
 
     for bar in rects1:
         yval = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width() / 2.0, yval + 0.07, f"{yval:.2f}", ha="center", va="bottom", fontsize=6.8, fontweight="bold")
+        ax.text(bar.get_x() + bar.get_width() / 2.0, yval + 0.08, f"{yval:.2f}", ha="center", va="bottom", fontsize=7.0,
+                bbox=dict(boxstyle="square,pad=0.08", fc="white", ec="none", alpha=0.9))
 
     for bar in rects2:
         yval = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width() / 2.0, yval + 0.07, f"{yval:.2f}", ha="center", va="bottom", fontsize=6.8, fontweight="bold")
+        ax.text(bar.get_x() + bar.get_width() / 2.0, yval + 0.08, f"{yval:.2f}", ha="center", va="bottom", fontsize=7.0,
+                bbox=dict(boxstyle="square,pad=0.08", fc="white", ec="none", alpha=0.9))
 
-    fig.tight_layout(pad=0.4)
-    fig.savefig(out_path.with_suffix(".pdf"))
-    fig.savefig(out_path.with_suffix(".png"), dpi=300)
+    fig.savefig(out_path.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.08)
+    fig.savefig(out_path.with_suffix(".png"), bbox_inches="tight", pad_inches=0.08, dpi=300)
     plt.close()
-    print(f"[+] Publication-grade Comparative figure generated: {out_path.with_suffix('.pdf')}")
+    print(f"[+] Comparative figure generated: {out_path.with_suffix('.pdf')}")
 
 
 def generate_fig4_breakdown(out_path: Path) -> None:
-    """Generate publication-grade verification breakdown bar chart."""
-    stages = ["Parse", "Ed25519", "SHA-256", "Clock"]
+    """Generate publication-grade verification breakdown bar chart with multi-line labels."""
+    plt.rcParams.update(SERIF_RC)
+    stages = ["CBOR\nParse", "Ed25519\nVerify", "SHA-256\nPayload", "Clock\nCheck"]
     times = [0.37, 0.57, 0.48, 0.0002]
-    colors = ["#1f4e78", "#2e7d32", "#c0392b", "#d35400"]
+    display_times = [0.37, 0.57, 0.48, 0.022]
+    colors = ["#1e3a8a", "#0d9488", "#be123c", "#d97706"]
 
-    fig, ax = plt.subplots(figsize=(3.4, 2.1), dpi=300)
+    fig, ax = plt.subplots(figsize=(3.5, 2.3), dpi=300)
+    ax.set_axisbelow(True)
 
-    bars = ax.bar(stages, times, color=colors, width=0.46, edgecolor="#1e293b", linewidth=0.7)
-    ax.set_ylabel("Latency (ms) for 1MB", fontweight="bold")
-    ax.set_title("Verification Sub-Component Breakdown", fontweight="bold", pad=5)
+    bars = ax.bar(stages, display_times, color=colors, width=0.45, edgecolor="#1e293b", linewidth=0.8)
+    ax.set_ylabel("Latency (ms) for 1MB Container")
+    ax.set_title("Verification Sub-Component Breakdown", pad=6)
     ax.grid(axis="y", ls="--", color="#e2e8f0", alpha=0.8, lw=0.6)
-    ax.set_ylim(0, 0.74)
+    ax.set_ylim(0, 0.75)
+    ax.set_xticks(range(len(stages)))
+    ax.set_xticklabels(stages, fontweight="bold")
 
-    for bar in bars:
+    for idx, bar in enumerate(bars):
+        actual = times[idx]
+        label_text = f"{actual:.2f} ms" if actual >= 0.01 else "<0.01 ms"
         yval = bar.get_height()
-        label_text = f"{yval:.2f} ms" if yval >= 0.01 else "<0.01 ms"
-        ax.text(bar.get_x() + bar.get_width() / 2.0, yval + 0.02, label_text, ha="center", va="bottom", fontsize=7.2, fontweight="bold")
+        ax.text(bar.get_x() + bar.get_width() / 2.0, yval + 0.02, label_text, ha="center", va="bottom", fontsize=7.0, fontweight="bold",
+                bbox=dict(boxstyle="square,pad=0.08", fc="white", ec="none", alpha=0.9))
 
-    fig.tight_layout(pad=0.4)
-    fig.savefig(out_path.with_suffix(".pdf"))
-    fig.savefig(out_path.with_suffix(".png"), dpi=300)
+    fig.savefig(out_path.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.08)
+    fig.savefig(out_path.with_suffix(".png"), bbox_inches="tight", pad_inches=0.08, dpi=300)
     plt.close()
-    print(f"[+] Publication-grade Breakdown figure generated: {out_path.with_suffix('.pdf')}")
+    print(f"[+] Breakdown figure generated: {out_path.with_suffix('.pdf')}")
 
 
 if __name__ == "__main__":
