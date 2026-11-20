@@ -3,9 +3,9 @@
 
 We evaluated our reference implementation across framing overhead, processing latency, comparative baselines, verification micro-breakdowns, and mobile battery impact.
 
-\textbf{Experimental Testbed:} Micro-benchmarks were executed on an x86\_64 workstation (AMD Ryzen 7 5800H, 8 cores @ 3.2\,GHz, 32\,GB DDR4 RAM, PCIe 3.0 NVMe SSD) running Linux 6.8 and Python 3.12 with OpenSSL 3.2 libcrypto CFFI bindings. All reported micro-benchmarks represent the mean across 30 iterations after a 5-run warm-up cycle, with standard deviation $<4.2\%$ across all measurements. Mobile energy was profiled on a Google Pixel 7 (Google Tensor G2, 8\,GB RAM, Android 14 AOSP build) via Google Batterystats and Battery Historian. Source code and reproducible benchmark artifacts are available anonymously\footnote{\url{https://anonymous.4open.science/r/vanish-protocol-7A2B}}.
+\textbf{Experimental Testbed:} Micro-benchmarks were executed on an x86\_64 workstation (AMD Ryzen 7 5800H, 8 cores @ 3.2\,GHz, 32\,GB RAM, NVMe SSD) running Linux 6.8 and Python 3.12 with OpenSSL 3.2 libcrypto CFFI bindings. Reported benchmarks represent the mean across 30 iterations after a 5-run warm-up cycle, with standard deviation $<4.2\%$ across all measurements. Mobile energy was profiled on a Google Pixel 7 (Google Tensor G2, 8\,GB RAM, Android 14 AOSP build) via Google Batterystats and Battery Historian. Source code and benchmark artifacts are available anonymously\footnote{\url{https://anonymous.4open.science/r/vanish-protocol-7A2B}}.
 
-\begin{table}[htbp]
+\begin{table}[t]
 \caption{Container Framing Overhead by Component}
 \label{tab:overhead}
 \centering
@@ -35,9 +35,9 @@ As shown in Table~\ref{tab:overhead}, a \texttt{.vfile} container introduces exa
 \subsection{Processing Latency Across File Sizes}
 We measured execution time for packing (unencrypted and AES-256-GCM encrypted) and unpacking payloads from $1$\,KB to $20$\,MB across 30 iterations each (Figure~\ref{fig:latency}).
 
-\begin{figure}[htbp]
+\begin{figure}[t]
 \centering
-\includegraphics[width=0.65\columnwidth]{figures/fig_latency_vs_size.pdf}
+\includegraphics[width=0.58\columnwidth]{figures/fig_latency_vs_size.pdf}
 \caption{Processing latency vs payload size (log-log scale). Small files ($\le 100$\,KB) process in $\le 1.12$\,ms; a $20$\,MB payload encrypts in $46.5$\,ms.}
 \label{fig:latency}
 \end{figure}
@@ -47,21 +47,21 @@ For small payloads ($1$\,KB to $100$\,KB), unencrypted packing requires $0.93$--
 \subsection{Comparative Baseline Performance}
 We isolated format overhead for an identical $1$\,MB payload against three uncompressed baselines: (i) Raw AES-256-GCM (cryptographic lower bound), (ii) Standard TAR (uncompressed framing), (iii) Signed Envelope (Ed25519 signature + AES-256-GCM), and (iv) VANISH with \texttt{SECURE\_SHRED} (Figure~\ref{fig:comparative}).
 
-\begin{figure}[htbp]
+\begin{figure}[t]
 \centering
-\includegraphics[width=0.65\columnwidth]{figures/fig_comparative_baseline.pdf}
+\includegraphics[width=0.58\columnwidth]{figures/fig_comparative_baseline.pdf}
 \caption{Comparative performance for 1\,MB payload: VANISH vs Raw AES-256-GCM, Standard TAR, and Signed Envelope.}
 \label{fig:comparative}
 \end{figure}
 
-Raw AES-256-GCM requires $1.26$\,ms creation and $0.92$\,ms extraction ($28$\,B overhead), while Standard TAR requires $0.85$\,ms creation and $0.90$\,ms extraction ($6144$\,B padding). A generic signed envelope requires $1.55$\,ms creation and $1.52$\,ms extraction ($92$\,B overhead). VANISH completes packaging in $2.92$\,ms and extraction in $2.35$\,ms with $429$\,bytes overhead. This confirms that VANISH introduces only $\approx 1.37$\,ms of marginal latency relative to a bare Signed Envelope ($2.92 - 1.55 = 1.37$\,ms) and $1.66$\,ms relative to raw AES-256-GCM ($2.92 - 1.26 = 1.66$\,ms) to provide full Canonical CBOR policy manifests, verified sender attribution, and hardware-backed lifecycle expiration.
+Raw AES-256-GCM takes $1.26$\,ms creation and $0.92$\,ms extraction ($28$\,B overhead), Standard TAR takes $0.85$\,ms and $0.90$\,ms ($6144$\,B padding), and a Signed Envelope takes $1.55$\,ms and $1.52$\,ms ($92$\,B overhead). VANISH completes packaging in $2.92$\,ms and extraction in $2.35$\,ms ($429$\,B overhead). Thus, VANISH adds only $1.37$\,ms marginal latency over a Signed Envelope ($2.92 - 1.55$\,ms) and $1.66$\,ms over raw AES-GCM ($2.92 - 1.26$\,ms) while providing full Canonical CBOR policy manifests, verified sender attribution, and hardware-backed expiration.
 
 \subsection{Verification Breakdown and Throughput}
 We isolated each verification sub-component on a $1$\,MB container (Figure~\ref{fig:breakdown}): container parsing requires $0.37$\,ms, Ed25519 signature verification requires $0.57$\,ms, SHA-256 payload integrity hashing takes $0.48$\,ms, and monotonic clock validation completes in $0.0002$\,ms.
 
-\begin{figure}[htbp]
+\begin{figure}[t]
 \centering
-\includegraphics[width=0.65\columnwidth]{figures/fig_verification_breakdown.pdf}
+\includegraphics[width=0.58\columnwidth]{figures/fig_verification_breakdown.pdf}
 \caption{Micro-benchmark breakdown of verification sub-components for a $1$\,MB container.}
 \label{fig:breakdown}
 \end{figure}
@@ -73,6 +73,6 @@ Total verification took $1.42$\,ms ($0.37 + 0.57 + 0.48$\,ms). Formally:
 where $T_{\text{const}} \approx 0.94$\,ms and $\alpha_{\text{SHA256}} \approx 0.48$\,ms/MB. On a single core, verification throughput exceeds 700 containers per second ($1 / 1.42\,\text{ms} \approx 704$) for 1\,MB containers under warm memory cache (excluding disk I/O).
 
 \subsection{Mobile Energy and Adversarial Robustness}
-Over a 24-hour test on Android 14 across 10 repeated runs, continuous 60-second polling generated 1,440 wakeups causing $11.8\%$ battery drain. In contrast, VANISH generated zero unnecessary wakeups, remaining in deep Doze mode until scheduled expiration and consuming less than $0.05\%$ incremental battery.
+Over 24 hours on Android 14 across 10 repeated runs, continuous 60-second polling generated 1,440 wakeups causing $11.8\%$ battery drain. In contrast, VANISH generated zero unnecessary wakeups, remaining in deep Doze mode until scheduled expiration and consuming less than $0.05\%$ incremental battery.
 
-Adversarial stress tests confirmed robust enforcement: (i) across 10,000 trials with pseudorandom bitflips on manifest timestamps, Ed25519 verification rejected 100\% of modified containers ($0\%$ false acceptance); (ii) across 1,000 simulated rollbacks evaluated against an emulated RPMB block device, the monotonic engine intercepted every attempt; and (iii) forensic carving tests confirmed clean positive/negative controls. Prior to expiration ($t < t_{\text{exp}}$), recovered container chunks decrypted and authenticated successfully. Following expiration ($t \ge t_{\text{exp}}$) and KeyMint hardware key destruction, identical ciphertext and manifest remnants dumped from storage failed decryption deterministically with AEAD tag errors (`DecryptionError`), verifying zero plaintext leakage. Multi-pass block overwriting (`SECURE_SHRED`) was verified on rotational magnetic media (`foremost`, `scalpel`), leaving $0\%$ reconstructible file signatures.
+Adversarial stress tests confirmed robust enforcement: (i) 10,000 bitflip trials on manifest timestamps yielded 100\% rejection ($0\%$ false acceptance); (ii) 1,000 simulated rollbacks evaluated against an emulated RPMB block device were all intercepted; and (iii) forensic carving confirmed clean controls: pre-expiration ($t < t_{\text{exp}}$), recovered chunks decrypted successfully; post-expiration ($t \ge t_{\text{exp}}$) with KeyMint hardware key destruction, identical flash remnants failed decryption deterministically with AEAD errors (`DecryptionError`), verifying zero plaintext leakage. Multi-pass overwriting (`SECURE_SHRED`) on magnetic media left $0\%$ reconstructible signatures (`foremost`, `scalpel`).
