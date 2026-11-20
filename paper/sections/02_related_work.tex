@@ -4,21 +4,21 @@
 Prior research on data expiration spans peer-to-peer storage, digital rights management, mobile sandboxing, and physical storage sanitization. Table~\ref{tab:comparison} summarizes how VANISH compares with existing approaches.
 
 \begin{table*}[t]
-\caption{Comparison of VANISH Against Existing Storage and Ephemeral Paradigms}
+\caption{Comparative Architectural Matrix: VANISH vs Existing Paradigms}
 \label{tab:comparison}
 \centering
 \small
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}
 \toprule
-\textbf{System / Paradigm} & \textbf{Network Dependency} & \textbf{Portability} & \textbf{OS Native Support} & \textbf{Supported Formats} & \textbf{Core Security Mechanism} & \textbf{Offline / Crawl Immune} \\
+\textbf{Paradigm / System} & \textbf{Network Dependency} & \textbf{Storage Scope} & \textbf{OS Native Hook} & \textbf{Format Agnostic} & \textbf{Enforcement / Cryptographic Basis} & \textbf{Sybil / Crawl Immune} \\
 \midrule
-Vanish 2009~\cite{geambasu2009vanish} & Continuous P2P DHT & Low (Distributed Chunks) & No (Application Layer) & Arbitrary & Shamir Secret Sharing & No (Vulnerable to Sybil~\cite{wolchok2010defeating}) \\
-Commercial DRM (Widevine) & Persistent License Server & Low (App Sandbox Bound) & TEE Enclave Bound & Media Only & AES-CTR / Centralized PKI & Yes \\
-Messaging Apps (Signal) & Central Cloud Server & Zero (App Storage Only) & No & Chat Attachments & Double Ratchet Protocol~\cite{perrin2016doubleratchet} & Yes \\
-Android Scoped Storage & Fully Offline & High (Standard File Formats) & Yes & Arbitrary & POSIX / MAC Policy~\cite{smalley2013security} & Yes (No Expiration Feature) \\
+Vanish 2009~\cite{geambasu2009vanish} & Continuous P2P DHT & Distributed Chunks & No (Application Layer) & Yes & Shamir Secret Sharing & No (Vulnerable to Sybil~\cite{wolchok2010defeating}) \\
+Commercial DRM (Widevine) & Persistent License Server & App Sandbox & TEE Enclave Bound & No (Media Only) & AES-CTR / Centralized PKI & Yes \\
+Messaging Apps (Signal) & Central Cloud Server & App Storage Only & No & No (Chat Attachments) & App Timer + Double Ratchet~\cite{perrin2016doubleratchet} & Yes \\
+Android Scoped Storage & Fully Offline & Filesystem Sandbox & Yes (AOSP) & Yes & POSIX / MAC \& SAF Policy~\cite{smalley2013security, android_scoped_storage} & Yes (No Lifecycle Expiration) \\
 \midrule
-\textbf{VANISH (This Work)} & \textbf{Fully Offline} & \textbf{High (.vfile Container)} & \textbf{Yes (Linux / AOSP Service)} & \textbf{Arbitrary Files} & \textbf{Ed25519 + CBOR + AES-GCM} & \textbf{Yes (Self-Contained Enclosure)} \\
+\textbf{VANISH (This Work)} & \textbf{Fully Offline} & \textbf{Portable (.vfile)} & \textbf{Yes (Linux / AOSP Service)} & \textbf{Yes (Universal)} & \textbf{Ed25519 + CBOR + AES-GCM + HPKE} & \textbf{Yes (Self-Contained Enclosure)} \\
 \bottomrule
 \end{tabular}%
 }
@@ -36,4 +36,4 @@ Early file deletion research focused on overwriting sectors multiple times on ma
 To solve this problem, Diesburg and Wang~\cite{diesburg2010survey} and Geambasu et al.~\cite{geambasu2011keymon} introduced cryptographic erasure (crypto-shredding): encrypting each file with a unique key and discarding that key upon deletion. VANISH adopts this principle: it supports direct file unlinking for basic privacy, and hardware keystore key deletion (Tier 2) to protect flash memory endpoints.
 
 \subsection{Mobile Operating System Access Control}
-Mobile operating systems have improved privacy by limiting broad filesystem access. SEAndroid~\cite{smalley2013security, bugiel2012towards} and Scoped Storage isolate apps and require media to pass through \texttt{MediaProvider} and the Storage Access Framework (SAF)~\cite{enck2014taintdroid}. While these controls stop untrusted apps from reading private directories, they do not provide time-based expiration. VANISH integrates with these existing storage interfaces to add native lifecycle management.
+Mobile operating systems have improved privacy by isolating applications and restricting global filesystem access. SEAndroid~\cite{smalley2013security, bugiel2012towards} and Scoped Storage isolate apps and require media access to pass through \texttt{MediaProvider} and the Storage Access Framework (SAF)~\cite{android_scoped_storage}. While these controls prevent unauthorized third-party apps from reading private directories, they do not provide temporal lifecycle management or automated expiration. VANISH integrates directly with these established storage interfaces to introduce native, policy-driven lifecycle management.

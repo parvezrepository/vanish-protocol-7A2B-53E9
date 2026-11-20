@@ -43,6 +43,22 @@ def benchmark_latency_vs_size(
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)
 
+        # Warm-up pass to eliminate initial module import and JIT cold-start jitter
+        warm_file = tmp_path / "warmup.bin"
+        warm_file.write_bytes(os.urandom(4096))
+        warm_vfile = tmp_path / "warmup.vfile"
+        _, warm_key = engine.pack_file(
+            input_path=warm_file,
+            output_path=warm_vfile,
+            private_key=priv,
+            ttl_seconds=3600,
+            encrypt=True,
+        )
+        warm_extract = tmp_path / "warmup_extract"
+        warm_extract.mkdir(exist_ok=True)
+        engine.unpack_file(warm_vfile, warm_extract, pub, aes_key=warm_key)
+        engine.pack_file(warm_file, warm_vfile, priv, ttl_seconds=3600, encrypt=False)
+
         for size in sizes_bytes:
             payload = os.urandom(size)
             test_file = tmp_path / f"test_{size}.bin"
@@ -218,7 +234,7 @@ def main() -> None:
     ]
 
     print(f"[*] Benchmarking Latency vs Size across {len(test_sizes)} payload tiers...")
-    latency_data = benchmark_latency_vs_size(test_sizes, repetitions=3)
+    latency_data = benchmark_latency_vs_size(test_sizes, repetitions=5)
 
     print("[*] Generating fig_latency_vs_size (PNG + PDF)...")
     plot_latency_vs_size(latency_data, fig_dir / "fig_latency_vs_size")

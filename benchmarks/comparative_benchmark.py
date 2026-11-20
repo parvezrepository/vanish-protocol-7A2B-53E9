@@ -43,6 +43,13 @@ def run_comparative_benchmarks(payload_size_bytes: int = 1024 * 1024, iterations
         raw_file = tmp_path / "payload.bin"
         raw_file.write_bytes(payload)
 
+        # Warm-up pass
+        warm_vfile = tmp_path / "warm.vfile"
+        _, wk = engine.pack_file(raw_file, warm_vfile, priv, ttl_seconds=3600, encrypt=True)
+        warm_out = tmp_path / "warm_out"
+        warm_out.mkdir(exist_ok=True)
+        engine.unpack_file(warm_vfile, warm_out, pub, aes_key=wk)
+
         # Baseline 1: Standard ZIP
         zip_path = tmp_path / "test.zip"
         t_create = []

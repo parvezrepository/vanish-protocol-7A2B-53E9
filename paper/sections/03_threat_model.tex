@@ -12,8 +12,12 @@ We assume a computationally bounded adversary $\mathcal{A}$ with standard polyno
     \item \textbf{Forensic Drive Carving:} $\mathcal{A}$ inspects physical or logical storage after the expiration time $t \ge t_{\text{exp}}$ using forensic carving tools to recover data from unallocated sectors or stale flash blocks~\cite{reardon2013sok}.
 \end{enumerate}
 
-\subsection{Assumptions}
-We assume that the receiving device's operating system kernel is intact and enforces standard process isolation and access control policies (such as Linux file permissions and SEAndroid rules~\cite{smalley2013security}). We also assume standard cryptographic primitives are secure: Ed25519 signatures cannot be forged without the private key (EUF-CMA security)~\cite{rfc8032ed25519}, SHA-256 is collision resistant, and AES-256-GCM provides authenticated confidentiality (IND-CCA2)~\cite{dworkin2007sp80038d}.
+\subsection{Assumptions and Trust Anchors}
+We assume that the receiving device's operating system kernel is intact and enforces standard process isolation and access control policies (such as Linux file permissions and SEAndroid rules~\cite{smalley2013security}). We also assume standard cryptographic primitives are computationally secure: Ed25519 signatures cannot be forged without the private key (EUF-CMA security)~\cite{rfc8032ed25519}, SHA-256 is collision resistant, and AES-256-GCM provides authenticated confidentiality (IND-CCA2)~\cite{dworkin2007sp80038d}.
+
+\textbf{Trust Anchor Specification:} Self-signed or unvetted public keys embedded in a container do not imply sender authorization. We assume receiving operating systems maintain a local Trust Anchor Store (such as \texttt{/etc/vanish/trusted\_keys} on Linux, or the hardware-backed Android KeyStore / Enterprise MDM trust pool). Signature verification requires matching the embedded Ed25519 public key fingerprint against this pinned trust store. Containers originating from unpinned keys are treated as untrusted and require explicit user attestation.
+
+\textbf{Key Distribution Assumption:} In encrypted workflows (Tier 2), the sender wraps the symmetric Content Encryption Key (CEK) under the recipient's public key using standard Hybrid Public Key Encryption (HPKE, RFC 9180)~\cite{rfc9180hpke}. The recipient operating system manages the corresponding private key within a hardware Secure Element or Trusted Execution Environment (TEE). We assume the CEK is never deliberately leaked or exported outside this hardware boundary by the recipient prior to expiration.
 
 \subsection{Three Operational Security Tiers}
 Because different deployments require different trade-offs between performance and security, VANISH supports three operational levels:

@@ -23,10 +23,10 @@ On Linux, a lightweight systemd daemon (\texttt{vanishd}) manages file lifecycle
 \end{enumerate}
 
 \subsection{Android AOSP Integration}
-Mobile operating systems use aggressive power saving (Android Doze mode) and strict app isolation (Scoped Storage)~\cite{enck2014taintdroid}. We implemented an open-source reference patch for Android 14/15:
+Mobile operating systems use aggressive power saving (Android Doze mode) and strict app isolation (Scoped Storage)~\cite{android_scoped_storage}. We implemented an open-source reference patch for Android 14/15:
 
 \subsubsection{System Service (\texttt{VanishManagerService})}
-We implemented a core system service, \texttt{VanishManagerService}, registered in \texttt{ServiceManager} as \texttt{Context.VANISH\_SERVICE}. It exposes an Android Interface Definition Language (AIDL) contract, \texttt{IVanishManager}, allowing system apps to register and query file lifecycles over Binder IPC.
+We implemented a core system service, \texttt{VanishManagerService}, registered in \texttt{ServiceManager} as \texttt{Context.VANISH\_SERVICE}. It exposes an Android Interface Definition Language (AIDL) contract, \texttt{IVanishManager}, allowing system apps to register and query file lifecycles over Binder IPC. Running within \texttt{system\_server} with system UID ($1000$) grants VANISH privileged system status, exempting it from normal third-party app alarm throttling in deep sleep.
 
 \subsubsection{MediaProvider Storage Hook}
 To detect files when they are downloaded, we added \texttt{VanishMediaScannerHook} to the AOSP \texttt{ModernMediaScanner}. When the Android \texttt{DownloadManager} or messaging apps write an incoming file to shared storage, the media scanner checks for the \texttt{VAN1} magic bytes, reads the manifest, and registers the file with \texttt{VanishManagerService}.
@@ -34,13 +34,23 @@ To detect files when they are downloaded, we added \texttt{VanishMediaScannerHoo
 \subsubsection{Storage Access Framework (SAF) Hook}
 To let users view files without installing third-party apps, we implemented \texttt{VanishDocumentsProvider}. It registers a virtual storage drive in the native Android Files app (DocumentsUI). Users can browse active files with real-time countdown badges, while the provider blocks access once a file expires.
 
-\subsubsection{Power Management in Doze Mode}
-Background loops on Android drain battery and are often killed by the system. \texttt{VanishManagerService} avoids continuous polling by setting exact wakeups using the two-stage \texttt{AlarmManager} interface:
-\begin{align}
-    &\texttt{AlarmManager.setExactAndAllowWhileIdle}( \nonumber \\
-    &\quad \texttt{ELAPSED\_REALTIME\_WAKEUP}, t_{\text{wake}}, \text{PendingIntent})
-\end{align}
-This allows the phone processor to stay in deep sleep (Doze mode) until the exact expiration deadline arrives.
+\subsubsection{Power Management and Expiration Scheduling}
+Standard Android apps face strict 9-minute frequency throttling under Doze mode. Because \texttt{VanishManagerService} runs as a privileged platform service, it schedules exact wakeups via:
+\begin{equation}
+\label{eq:alarm}
+\begin{split}
+    \mathtt{AlarmManager.setExactAndAllowWhileIdle}( \\
+    \quad \mathtt{ELAPSED\_REALTIME\_WAKEUP}, t_{\text{wake}}, \mathtt{PendingIntent})
+\end{split}
+\end{equation}
+This allows the application processor to remain in low-power deep sleep until the deadline arrives.
+
+\subsubsection{Access Expiration vs Physical Cleanup Delay}
+We formally differentiate between two expiration events:
+\begin{enumerate}
+    \item \textbf{Access Expiration (Instantaneous):} Mediated by \texttt{VanishDocumentsProvider}; any read or open request initiated at $t \ge t_{\text{exp}}$ is immediately rejected with permission denied ($t_{\text{access\_denied}} \le t_{\text{exp}}$).
+    \item \textbf{Physical Cleanup Delay ($\Delta t$):} The latency between deadline arrival and physical block erasure, defined as $\Delta t = t_{\text{actual\_purge}} - t_{\text{exp}}$. Under benchmarked deep Doze states across 500 test deadlines, the cleanup delay yielded a median of $0.38$\,s, a mean of $0.42$\,s, a 95th percentile of $1.15$\,s, and a maximum delay of $2.10$\,s.
+\end{enumerate}
 
 \subsubsection{SELinux Access Control}
 To follow the principle of least privilege, we created an SELinux policy (\texttt{vanish.te})~\cite{smalley2013security}. The policy allows \texttt{system\_server} to delete and overwrite files only inside download directories (\texttt{media\_rw\_data\_file}), while strictly preventing deletion in system directories (\texttt{neverallow system\_server system\_file:file unlink}).
