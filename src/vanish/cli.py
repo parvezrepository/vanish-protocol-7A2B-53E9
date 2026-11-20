@@ -236,6 +236,27 @@ def handle_purge(args: argparse.Namespace) -> int:
     return 0
 
 
+def handle_daemon(args: argparse.Namespace) -> int:
+    """Handle 'vanish daemon' command."""
+    from vanish.daemon import VanishLifecycleDaemon
+    import logging
+
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=log_level, format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s")
+
+    daemon = VanishLifecycleDaemon(
+        watch_dirs=args.watch_dirs,
+        sweep_interval_sec=args.interval,
+    )
+    print(f"[*] Starting VANISH OS Lifecycle Enforcement Daemon...")
+    print(f"    Watched directories: {args.watch_dirs}")
+    print(f"    Sweep interval:      {args.interval}s")
+    print(f"    Press Ctrl+C to terminate.")
+    daemon.start(blocking=True)
+    return 0
+
+
+
 def main() -> None:
     """Main CLI entrypoint."""
     parser = argparse.ArgumentParser(
@@ -294,6 +315,13 @@ def main() -> None:
     p_purge.add_argument("--dir", "-d", required=True, help="Directory to scan for expired .vfile files")
     p_purge.add_argument("--recursive", "-r", action="store_true", help="Scan recursively")
     p_purge.set_defaults(func=handle_purge)
+
+    # Daemon
+    p_daemon = subparsers.add_parser("daemon", help="Run background OS lifecycle enforcement daemon")
+    p_daemon.add_argument("--watch-dirs", "-w", nargs="+", required=True, help="Directory paths to monitor")
+    p_daemon.add_argument("--interval", "-i", type=float, default=2.0, help="Periodic sweep interval (seconds)")
+    p_daemon.add_argument("--verbose", "-v", action="store_true", help="Enable verbose debug logging")
+    p_daemon.set_defaults(func=handle_daemon)
 
     args = parser.parse_args()
     sys.exit(args.func(args))
