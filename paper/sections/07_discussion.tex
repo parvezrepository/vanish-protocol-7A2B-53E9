@@ -1,0 +1,24 @@
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+In this section, we analyze critical practical engineering challenges, forensic edge cases, hardware integration avenues, and societal implications.
+
+\subsection{Forensic Erasure on Modern Flash Storage}
+A prominent concern in data sanitization is whether physical overwriting guarantees the permanent eradication of sensitive plaintext. On legacy magnetic hard disk drives (HDDs), multi-pass overwriting was effective~\cite{gutmann1996secure}. However, modern computing endpoints predominantly utilize solid-state drives (SSDs) and mobile flash storage (eMMC and UFS) governed by an internal Flash Translation Layer (FTL)~\cite{wei2011reliably}.
+
+The FTL decouples logical block addressing (LBA) from physical flash memory cells to optimize write endurance via wear-leveling algorithms. Consequently, when an operating system overwrites a logical block, the FTL directs the write to a newly allocated physical page, simply marking the antecedent physical page as stale. These stale pages remain physically readable until the drive controller executes an asynchronous garbage collection cycle.
+
+VANISH addresses this physical reality through our **Tier 2 Crypto-Shredding** architecture~\cite{diesburg2010survey, geambasu2011keymon}. Rather than relying solely on logical block overwriting, the container payload is sealed using AES-256-GCM. The decryption key $K$ is managed in volatile hardware-isolated memory (ARM TrustZone or TPM 2.0 Keystore). Upon expiration, the OS daemon purges $K$ via explicit memory zeroization and hardware keystore deletion. Because $K$ is generated with 256 bits of cryptographic entropy, the retained raw flash ciphertext is mathematically indecipherable under the standard IND-CPA security of AES, neutralizing the FTL wear-leveling vulnerability without requiring destructive physical drive sanitization.
+
+\subsection{Hardware Monotonic Roots of Trust}
+Software-level time verification is fundamentally vulnerable if an adversary possesses root privileges or isolates the device offline. To provide non-repudiable time guarantees, future production implementations of VANISH can interface directly with hardware security modules:
+\begin{enumerate}
+    \item \textbf{ARM TrustZone RPMB:} Embedded mobile storage incorporates a Replay Protected Memory Block (RPMB) partition in eMMC/UFS memory. Write access to RPMB requires message authentication codes (HMAC) signed by a key burned into the system-on-chip (SoC) during manufacture, providing a tamper-proof hardware monotonic counter that advances monotonically across reboots.
+    \item \textbf{TPM 2.0 Non-Volatile Indices:} On enterprise workstations and servers, the VANISH daemon can anchor time state to a TPM 2.0 NV index configured with the \texttt{TPMA\_NV\_COUNTER} attribute, enforcing monotonic advancement via \texttt{TPM2\_NV\_Increment}~\cite{tpm20specification}.
+\end{enumerate}
+
+\subsection{Dynamic Early Revocation}
+Under the offline VANISH protocol, an issued container remains valid until the signed expiration epoch $t_{\text{exp}}$. However, situations may arise where a sender requires premature revocation (e.g., accidental transmission of proprietary credentials). While offline containers cannot receive push notifications, hybrid deployments can support dynamic revocation via an optional \textbf{Revocation Transparency Log (RTL)}. When network connectivity is active, the OS daemon queries an untrusted key-transparency mirror using the manifest's \texttt{file\_id}. If a revocation certificate signed by the sender's private key is discovered, the daemon terminates the container prior to $t_{\text{exp}}$.
+
+\subsection{Societal and Regulatory Implications}
+Modern privacy regulations, including GDPR Article 17~\cite{gdpr2016} and CCPA~\cite{ccpa2018}, increasingly penalize organizations for perpetual retention of consumer data. By embedding verifiable expiration into standard digital files, VANISH provides an automated, standardized mechanism for data controllers to enforce data minimization principles. Furthermore, in interpersonal communication, VANISH mitigates the proliferation of non-consensual media re-circulation by ensuring that shared images, audio, and documents possess a finite, user-defined lifespan.

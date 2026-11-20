@@ -1,0 +1,6 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+In this paper, we presented \textbf{VANISH}, a universal, cross-platform digital file container and operating system subsystem designed to introduce verifiable, time-bounded lifecycle enforcement to arbitrary digital files. By coupling canonical CBOR metadata, Ed25519 digital signatures, and AES-256-GCM envelope encryption with native operating system storage monitors, VANISH bridges the longstanding architectural divide between proprietary ephemeral messaging silos and general-purpose filesystem storage. 
+
+Our prototype implementation—comprising a desktop Linux daemon (\texttt{vanishd}) and an Android Open Source Project (AOSP) framework patch (\texttt{VanishManagerService})—demonstrates that native lifecycle management imposes negligible storage overhead ($429$\,bytes), completes verification in sub-millisecond latency ($1.45$\,ms/MB), and achieves zero CPU wake-locks on mobile hardware. By formalizing threat models across cooperative and adversarial boundaries, VANISH establishes a practical foundation for transitioning from an era of perpetual digital accumulation toward an ecosystem of responsible, self-expiring digital information.
