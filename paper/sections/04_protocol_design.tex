@@ -1,0 +1,24 @@
+\section{VANISH Protocol Architecture}
+\label{sec:protocol}
+
+\subsection{Binary Container Layout}
+The VANISH container (\texttt{.vfile}) employs a fixed 32-byte header followed by variable-length authenticated segments:
+\begin{enumerate}
+    \item \textbf{Fixed Header (32 bytes):} Contains the magic bytes (\texttt{VAN1}), protocol version ($1$), feature bitmask flags, and byte-length descriptors for manifest, payload, signature, public key, and nonce.
+    \item \textbf{Public Key Segment:} 32 raw bytes representing the Ed25519 issuer public key.
+    \item \textbf{Nonce Segment:} 12 bytes for AES-GCM initialization vector.
+    \item \textbf{Digital Signature Segment:} 64 bytes containing the detached Ed25519 signature.
+    \item \textbf{Manifest Segment:} Canonical CBOR (RFC 8949) structure encoding file metadata, MIME type, issuance timestamp, expiration epoch, and policy action.
+    \item \textbf{Payload Segment:} Raw original content or AES-256-GCM ciphertext.
+\end{enumerate}
+
+\subsection{Cryptographic Integrity Binding}
+To prevent length-extension, flag alteration, or parameter swapping, the digital signature is evaluated over a unified preimage:
+\begin{equation}
+    \mathcal{M} = \text{Header}_{0:26} \mathbin{\Vert} \text{PubKey} \mathbin{\Vert} \text{Nonce} \mathbin{\Vert} \text{Manifest}_{\text{CBOR}} \mathbin{\Vert} \mathcal{H}(\text{Payload})
+\end{equation}
+where $\mathcal{H}$ denotes SHA-256. The signature $\sigma$ is computed as:
+\begin{equation}
+    \sigma = \text{Ed25519\_Sign}(\text{SK}_{\text{Issuer}}, \mathcal{H}(\mathcal{M}))
+\end{equation}
+Any post-generation modification to flags, timestamps, or payload data invalidates $\sigma$, resulting in immediate container rejection.

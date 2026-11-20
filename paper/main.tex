@@ -1,0 +1,46 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{bytefield}
+
+\begin{document}
+
+\title{VANISH: Design and Implementation of a Cross-Platform, Cryptographically Verifiable Self-Expiring Digital File Protocol}
+
+\author{
+\IEEEauthorblockN{Anonymous Author(s)}
+\IEEEauthorblockA{\textit{Research Laboratory for Systems Security and Privacy}}
+}
+
+\maketitle
+
+\begin{abstract}
+Traditional operating systems and file formats lack intrinsic lifecycle management, treating stored digital files as permanent artifacts once transferred to recipient storage. While ephemeral messaging systems offer application-bounded self-destruction, they fail to provide a universal, format-agnostic abstraction for portable files residing on local filesystems. Historical proposals attempting cryptographic self-destruction relied on decentralized hash table (DHT) key churn, proving vulnerable to Sybil archiving attacks.
+
+In this paper, we propose \textbf{VANISH}, a universal digital file protocol establishing cryptographically verifiable, time-bounded lifecycle enforcement across heterogeneous operating systems. VANISH encapsulates arbitrary payloads into a self-describing container (\texttt{.vfile}) containing canonical CBOR metadata, Ed25519 digital signatures, and optional AES-256-GCM envelope encryption. We detail our reference engine and OS-level lifecycle enforcement architecture. Our experimental evaluation demonstrates that VANISH imposes negligible storage overhead ($<1.2$\,KB), completes container verification in sub-millisecond latency, and reliably prevents time-rollback and unauthorized persistence on consumer endpoints.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Data Privacy, Ephemeral Files, File Systems, Applied Cryptography, Operating System Security, Life-Cycle Management.
+\end{IEEEkeywords}
+
+\input{sections/01_introduction}
+\input{sections/02_related_work}
+\input{sections/03_threat_model}
+\input{sections/04_protocol_design}
+\input{sections/05_os_enforcement}
+\input{sections/06_evaluation}
+\input{sections/07_conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

@@ -1,0 +1,11 @@
+\section{Related Work}
+\label{sec:related_work}
+
+\subsection{Decentralized Key-Decay Systems}
+The earliest prominent effort to achieve self-destructing digital data in software was the 2009 Vanish system introduced by Geambasu et al.~\cite{geambasu2009vanish}. Their proposal partitioned data encryption keys into Shamir secret shares distributed across the Vuze BitTorrent Distributed Hash Table (DHT). The design relied on regular DHT node turnover (churn) to naturally prune keys as nodes departed without re-announcing shares. However, Wolchok et al.~\cite{wolchok2010defeating} demonstrated that low-cost Sybil attacks could systematically harvest and crawl the DHT, permanently archiving secret shares prior to expiration. Our work, while sharing the goal of ephemerality, differs fundamentally: rather than trusting uncontrolled peer-to-peer DHT churn, VANISH operates on self-contained cryptographic containers with operating system-level storage guarantees.
+
+\subsection{Digital Rights Management (DRM)}
+Commercial DRM systems (e.g., Apple FairPlay, Microsoft PlayReady, Google Widevine) enforce content consumption policies via centralized license servers and hardware-enforced trusted execution environments (TEEs). While effective for commercial media streaming, DRM frameworks are heavyweight, proprietary, require persistent online license clearance, and do not provide an open standard for general-purpose user-to-user ephemeral file exchange.
+
+\subsection{Secure Deletion in Operating Systems}
+Techniques for secure file deletion have evolved from user-space overwriting tools (e.g., Gutmann methods) to filesystem-integrated encryption with cryptographic erasure (Crypto-Shredding). VANISH builds upon these foundational filesystem techniques by standardizing the policy encapsulation layer and linking it directly to system storage monitors.

@@ -1,0 +1,16 @@
+\section{Native Operating System Enforcement}
+\label{sec:os_enforcement}
+
+To eliminate the necessity for receiver-side specialized applications, VANISH designs native integration hooks into core operating system storage subsystems.
+
+\subsection{Linux Reference Daemon (\texttt{vanishd})}
+On Linux, our prototype daemon leverages the \texttt{fanotify} API to monitor target storage directories (e.g., \texttt{\textasciitilde/Downloads}, \texttt{/var/spool}). When a \texttt{.vfile} is closed after write (\texttt{FAN\_CLOSE\_WRITE}), the daemon:
+\begin{enumerate}
+    \item Ingests and validates the 32-byte binary header.
+    \item Verifies the Ed25519 signature against trusted keystores.
+    \item Inserts the expiration epoch $t_{\text{exp}}$ into an in-memory priority queue backed by \texttt{timerfd}.
+    \item Upon timer expiration, triggers the designated action: unlinking the file or securely overwriting its blocks with pseudo-random noise before removal.
+\end{enumerate}
+
+\subsection{Android AOSP Integration}
+Within Android Open Source Project (AOSP), the VANISH subsystem interfaces with \texttt{MediaProvider} and \texttt{StorageManagerService}. Custom MIME type handlers map \texttt{application/x-vanish} directly into the system download index. Background cleanup is registered with the native \texttt{AlarmManager} with exact wakeups, executing file unlinking via system UID permissions.

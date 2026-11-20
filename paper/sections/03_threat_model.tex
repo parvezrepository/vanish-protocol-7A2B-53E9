@@ -1,0 +1,14 @@
+\section{Threat Model and Assumptions}
+\label{sec:threat_model}
+
+A realistic security evaluation of ephemeral file protocols requires defining the precise capabilities of adversaries. We model three security tiers:
+
+\subsection{Threat Tiers}
+\begin{itemize}
+    \item \textbf{Tier 1: Cooperative Hygiene (Consumer/Enterprise Endpoints):} The primary adversary is accidental retention, data clutter, and regulatory non-compliance. The host operating system cooperates by executing scheduled pruning of expired \texttt{.vfile} instances.
+    \item \textbf{Tier 2: OS-Sandboxed Cryptographic Invalidation:} The adversary has read access to the filesystem after $t \ge t_{\text{exp}}$. Under Tier 2, the payload is protected with AES-256-GCM envelope encryption. When $t \ge t_{\text{exp}}$, the OS daemon scrubs the decryption key from the kernel keystore and zeroizes memory, rendering the retained ciphertext mathematically indecipherable.
+    \item \textbf{Tier 3: Clock Manipulation Adversaries:} A local adversary attempts to defeat expiration by setting the local system clock backward. VANISH mitigates this using monotonic counter tracking ($\texttt{CLOCK\_MONOTONIC\_RAW}$) and authenticated network time validation.
+\end{itemize}
+
+\subsection{Fundamental Scoping and Non-Goals}
+Consistent with all consumer-facing privacy technologies, VANISH does not claim to prevent an adversary with external hardware capture capabilities (the ``analog hole'') or an attacker who deliberately extracts and saves plaintext bytes prior to expiration. VANISH guarantees the verifiable lifecycle management of the \textit{managed local file object}.

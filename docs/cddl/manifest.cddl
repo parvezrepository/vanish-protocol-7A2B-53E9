@@ -1,0 +1,21 @@
+; CDDL Schema for VANISH v1.0 Manifest (RFC 8610)
+; Defines canonical CBOR structure for self-expiring digital file manifests.
+
+vanish_manifest = {
+    "protocol": "VANISH/1.0",
+    "file_id": tstr,                       ; Unique UUIDv4 identifier
+    "original_name": tstr,                 ; Original filename with extension
+    "mime_type": tstr,                     ; IANA media type
+    "payload_hash": bstr .size 32,         ; Cryptographic SHA-256 digest of original payload
+    "issued_at": uint,                     ; Issuance timestamp (Unix seconds)
+    "expires_at": uint,                    ; Expiration timestamp (Unix seconds)
+    "expiry_policy": expiry_policy_enum,   ; Expiry action policy
+    "issuer": tstr,                        ; Identity or public-key fingerprint of issuer
+    ? "max_open_count": uint / null,       ; Optional usage threshold
+    ? "custom_metadata": { * tstr => any } ; Optional extensible application metadata
+}
+
+expiry_policy_enum = 1 / 2 / 3
+; 1 = AUTO_UNLINK (standard filesystem unlinking)
+; 2 = SECURE_SHRED (cryptographic block overwrite before unlinking)
+; 3 = REVOKE_KEY_ONLY (destroy envelope encryption key in OS secure storage)

@@ -1,0 +1,8 @@
+\section{Introduction}
+\label{sec:intro}
+
+In contemporary computing, digital information sharing is governed by an asymmetric model of custody: once a digital file is transmitted across a communication boundary, the sender forfeits all technical agency over its persistent storage. Whether exchanging commercial contracts, intellectual property, medical imaging, or ephemeral personal communications, receivers routinely accumulate persistent copies on local disks, network shares, and unmanaged backup repositories. This paradigm of perpetual accumulation introduces severe systemic vulnerabilities, including data retention liabilities under data protection regulations (such as GDPR Article 17, the ``Right to be Forgotten''), intellectual property leakage, and unauthorized archival.
+
+While modern end-to-end encrypted messaging platforms (e.g., Signal, WhatsApp, Telegram) have popularized ephemeral or ``disappearing'' messages, their security and enforcement guarantees are strictly confined within proprietary application silos. Once a file is downloaded or saved to external storage, it defaults to a standard unmanaged file format (\texttt{.pdf}, \texttt{.png}, \texttt{.docx}), losing all association with its intended lifespan.
+
+To address this deficiency, we present \textbf{VANISH}, a universal, cross-platform digital file container and protocol. VANISH embeds verifiable cryptographic lifecycle policies directly into a portable container format (\texttt{.vfile}). Rather than relying on fragile peer-to-peer networks or continuous cloud connectivity, VANISH integrates with operating system storage managers to provide native lifecycle management, automatically purging or cryptographically invalidating local copies upon policy expiration.
