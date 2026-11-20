@@ -37,7 +37,7 @@ Because the signature binds the first 26 header bytes, public key, nonce, canoni
 \end{equation}
 The encapsulated key is placed in the CBOR manifest. 
 
-\textbf{Public Key Discovery:} The sender obtains $\text{PK}_{\text{Recv}}$ via one of three supported channels: (i) out-of-band verified contact cards (similar to Signal safety numbers), (ii) enterprise directory profiles provisioned via MDM / LDAP, or (iii) append-only Key Transparency logs. If an unpinned recipient key is supplied, client tooling issues an explicit attestation warning. Upon arrival, the recipient's OS daemon un-encapsulates $K_{\text{CEK}}$ using the host private key within the hardware keystore (ARM TrustZone / TPM 2.0) and registers it tagged with the container's \texttt{file\_id}. Volatile memory buffers holding $K_{\text{CEK}}$ are immediately scrubbed.
+\textbf{Public Key Discovery:} The sender obtains $\text{PK}_{\text{Recv}}$ via: (i) out-of-band verified contact cards (similar to Signal safety numbers), (ii) enterprise directory profiles provisioned via MDM / LDAP, or (iii) append-only Key Transparency logs. If an unpinned recipient key is supplied, client tooling issues an explicit attestation warning. Upon arrival, the recipient's OS daemon un-encapsulates $K_{\text{CEK}}$ using the host private key within the hardware keystore (ARM TrustZone / TPM 2.0) and registers it tagged with the container's \texttt{file\_id}. Volatile memory buffers holding $K_{\text{CEK}}$ are immediately scrubbed.
 
 \subsection{Formal Security Reductions}
 \newtheorem{theorem}{Theorem}

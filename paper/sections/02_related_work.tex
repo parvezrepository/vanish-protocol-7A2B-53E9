@@ -1,7 +1,7 @@
 \section{Related Work}
 \label{sec:related_work}
 
-Prior research on data expiration spans peer-to-peer storage, digital rights management, mobile sandboxing, and physical storage sanitization. Table~\ref{tab:comparison} summarizes the architectural comparison between VANISH and existing paradigms.
+Prior research on data expiration spans peer-to-peer systems, digital rights management, mobile sandboxing, and physical sanitization. Table~\ref{tab:comparison} contrasts VANISH with existing paradigms.
 
 \begin{table*}[t]
 \caption{Comparative Architectural Matrix: VANISH vs Existing Paradigms}
@@ -25,15 +25,15 @@ Android Scoped Storage & Fully Offline & Filesystem Sandbox & Yes (AOSP) & Yes &
 \end{table*}
 
 \subsection{Distributed Key Degradation}
-The original Vanish system by Geambasu et al.~\cite{geambasu2009vanish} pioneered software-based data self-destruction by splitting encryption keys into Shamir secret shares across Vuze BitTorrent DHT nodes. It relied on peer churn to drop unrefreshed shares over time. However, Wolchok et al.~\cite{wolchok2010defeating} defeated this mechanism using low-cost Sybil nodes that crawled DHT keyspaces and archived shares before expiration. Other DHT approaches introduced prohibitive communication overhead or centralized indexers. VANISH circumvents distributed network dependencies entirely, relying on authenticated local containers and host operating system services.
+Vanish~\cite{geambasu2009vanish} pioneered software-driven data destruction by distributing Shamir key shares across BitTorrent DHT nodes, relying on peer churn for key degradation. Wolchok et al.~\cite{wolchok2010defeating} defeated this model using low-cost Sybil crawlers that harvested keyspaces prior to expiration. Subsequent DHT schemes introduced high network overhead or centralized indexers. VANISH eliminates peer-to-peer network dependencies entirely, relying on authenticated local containers and host operating system enforcement.
 
 \subsection{Digital Rights Management (DRM)}
-Commercial DRM platforms (e.g., Google Widevine, Apple FairPlay) govern media access via remote license servers and hardware-isolated Trusted Execution Environments (TEEs)~\cite{armtrustzone}. Although effective for commercial streaming, DRM systems are proprietary, vendor-locked, require persistent network clearance, and support only specific media formats. Conversely, VANISH provides an open, format-agnostic specification designed for peer-to-peer file transfer without third-party licensing servers.
+Commercial DRM platforms (e.g., Widevine, FairPlay) govern media access via remote license servers and hardware-isolated TEEs~\cite{armtrustzone}. While effective for commercial media streaming, DRM systems are proprietary, vendor-locked, demand continuous network connectivity, and support only specific media codecs. In contrast, VANISH provides an open, format-agnostic specification designed for decentralized, peer-to-peer file transfer without third-party licensing authorities.
 
-\subsection{Secure Deletion on Modern Storage Media}
-Legacy secure deletion relied on multi-pass block overwriting on magnetic disks~\cite{gutmann1996secure}. On modern solid-state drives (SSDs) and mobile flash storage (eMMC/UFS), however, internal Flash Translation Layers (FTL) perform out-of-place writes and wear-leveling~\cite{wei2011reliably, reardon2013sok}. Overwriting a logical block directs writes to unused physical blocks, leaving stale plaintext pages intact until garbage collection runs. 
+\subsection{Secure Deletion on Flash Storage}
+Legacy secure deletion relied on multi-pass sector overwriting on magnetic disks~\cite{gutmann1996secure}. On modern solid-state drives (SSDs) and mobile flash storage (eMMC/UFS), however, internal Flash Translation Layers (FTL) perform out-of-place writes and wear-leveling~\cite{wei2011reliably, reardon2013sok}. Overwriting a logical block directs writes to unused physical blocks, leaving stale plaintext pages intact until garbage collection runs. 
 
-To overcome this physical constraint, Diesburg and Wang~\cite{diesburg2010survey} and Geambasu et al.~\cite{geambasu2011keymon} proposed cryptographic erasure (crypto-shredding): encrypting files with unique keys and discarding the keys upon deletion. VANISH formalizes this principle, supporting direct inode unlinking for hygiene alongside hardware keystore key destruction (Tier 2) to neutralize flash remanence.
+To overcome this constraint, Diesburg and Wang~\cite{diesburg2010survey} and Geambasu et al.~\cite{geambasu2011keymon} proposed cryptographic erasure (crypto-shredding): encrypting files with unique keys and discarding the keys upon deletion. VANISH adopts this principle, combining direct inode unlinking for hygiene with hardware keystore key deletion (Tier 2) to neutralize flash remanence.
 
 \subsection{Mobile Operating System Access Control}
-Mobile platforms improve privacy through mandatory access control and filesystem virtualization. SEAndroid~\cite{smalley2013security, bugiel2012towards} and Scoped Storage mandate that third-party apps access shared media exclusively via \texttt{MediaProvider} and the Storage Access Framework (SAF)~\cite{android_scoped_storage}. While effective against unauthorized snooping, these controls enforce spatial rather than temporal boundaries. VANISH instruments these native storage checkpoints to provide automated lifecycle expiration.
+Mobile platforms isolate applications via mandatory access control and filesystem virtualization. SEAndroid~\cite{smalley2013security, bugiel2012towards} and Scoped Storage mandate that third-party apps access shared media exclusively via \texttt{MediaProvider} and the Storage Access Framework (SAF)~\cite{android_scoped_storage}. While effective against unauthorized snooping, these controls enforce spatial rather than temporal boundaries. VANISH instruments these native storage checkpoints to introduce automated lifecycle management.
