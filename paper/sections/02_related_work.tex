@@ -1,7 +1,7 @@
 \section{Related Work}
 \label{sec:related_work}
 
-Prior research on data expiration spans peer-to-peer systems, digital rights management, mobile sandboxing, and physical sanitization. Table~\ref{tab:comparison} contrasts VANISH with existing paradigms.
+Prior research on data expiration spans peer-to-peer systems, cloud assured deletion, mobile sandboxing, and physical storage sanitization. Table~\ref{tab:comparison} contrasts VANISH with existing paradigms.
 
 \begin{table*}[t]
 \caption{Comparative Architectural Matrix: VANISH vs Existing Paradigms}
@@ -14,26 +14,29 @@ Prior research on data expiration spans peer-to-peer systems, digital rights man
 \textbf{Paradigm / System} & \textbf{Network Dependency} & \textbf{Storage Scope} & \textbf{OS Native Hook} & \textbf{Format Agnostic} & \textbf{Enforcement / Cryptographic Basis} & \textbf{Sybil / Crawl Immune} \\
 \midrule
 Vanish 2009~\cite{geambasu2009vanish} & Continuous P2P DHT & Distributed Chunks & No (Application Layer) & Yes & Shamir Secret Sharing & No (Vulnerable to Sybil~\cite{wolchok2010defeating}) \\
-Commercial DRM (Widevine) & Persistent License Server & App Sandbox & TEE Enclave Bound & No (Media Only) & AES-CTR / Centralized PKI & Yes \\
+FADE 2010~\cite{tang2010fade} & Persistent Cloud Quorum & Cloud Storage Overlay & No & Yes & Policy Key Manager + Cryptographic Erasure & Yes \\
+Commercial DRM / IRM & Persistent License Server & Siloed / Enclave & TEE Enclave Bound & No (Media / Office Only) & Centralized KMS / AES-CTR / PKI & Yes \\
 Messaging Apps (Signal) & Central Cloud Server & App Storage Only & No & No (Chat Attachments) & App Timer + Double Ratchet~\cite{perrin2016doubleratchet} & Yes \\
 Android Scoped Storage & Fully Offline & Filesystem Sandbox & Yes (AOSP) & Yes & POSIX / MAC \& SAF Policy~\cite{smalley2013security, android_scoped_storage} & Yes (No Lifecycle Expiration) \\
 \midrule
-\textbf{VANISH (This Work)} & \textbf{Fully Offline} & \textbf{Portable (.vfile)} & \textbf{Yes (Linux / AOSP Service)} & \textbf{Yes (Universal)} & \textbf{Ed25519 + CBOR + AES-GCM + HPKE} & \textbf{Yes (Self-Contained Enclosure)} \\
+\textbf{VANISH (This Work)} & \textbf{Fully Offline} & \textbf{Portable (.vfile)} & \textbf{Yes (Linux / AOSP Service)} & \textbf{Yes (Universal)} & \textbf{Ed25519ph + CBOR + AES-GCM + HPKE} & \textbf{Yes (Self-Contained Enclosure)} \\
 \bottomrule
 \end{tabular}%
 }
 \end{table*}
 
-\subsection{Distributed Key Degradation}
-Vanish~\cite{geambasu2009vanish} pioneered software-driven data destruction by distributing Shamir key shares across BitTorrent DHT nodes, relying on peer churn for key degradation. Wolchok et al.~\cite{wolchok2010defeating} defeated this model using low-cost Sybil crawlers that harvested keyspaces prior to expiration. Subsequent DHT schemes introduced high network overhead or centralized indexers. VANISH eliminates peer-to-peer network dependencies entirely, relying on authenticated local containers and host operating system enforcement.
+\subsection{Cryptographic and Distributed Data Expiration}
+Radia Perlman~\cite{perlman2005ephemerizer} introduced the Ephemerizer, formalizing assured data deletion by encrypting data with ephemeral server keys and destroying private keys at expiration. Tang et al.~\cite{tang2010fade} extended key-revocation to cloud storage via FADE, using quorum-based key managers atop untrusted cloud overlays. Geambasu et al.~\cite{geambasu2009vanish} proposed Vanish to eliminate central servers by scattering Shamir secret shares across BitTorrent DHTs. However, Wolchok et al.~\cite{wolchok2010defeating} defeated Vanish using low-cost Sybil crawlers that harvested keyspace chunks prior to expiration. CleanOS~\cite{tang2012cleanos} explored mobile idle eviction by offloading encryption keys to the cloud when apps idle. 
 
-\subsection{Digital Rights Management (DRM)}
-Commercial DRM platforms (e.g., Widevine, FairPlay) govern media access via remote license servers and hardware-isolated TEEs~\cite{armtrustzone}. While effective for commercial media streaming, DRM systems are proprietary, vendor-locked, demand continuous network connectivity, and support only specific media codecs. In contrast, VANISH provides an open, format-agnostic specification designed for decentralized, peer-to-peer file transfer without third-party licensing authorities.
+Unlike prior systems, VANISH requires zero P2P network participation and zero persistent server connections. By encapsulating policy manifests directly into signed portable binary containers, expiration is enforced locally by host operating systems.
 
-\subsection{Secure Deletion on Flash Storage}
-Legacy secure deletion relied on multi-pass sector overwriting on magnetic disks~\cite{gutmann1996secure}. On modern solid-state drives (SSDs) and mobile flash storage (eMMC/UFS), however, internal Flash Translation Layers (FTL) perform out-of-place writes and wear-leveling~\cite{wei2011reliably, reardon2013sok}. Overwriting a logical block directs writes to unused physical blocks, leaving stale plaintext pages intact until garbage collection runs. 
+\subsection{Digital Rights Management and Enterprise IRM}
+Commercial DRM platforms (e.g., Widevine, FairPlay) and Enterprise Information Rights Management (IRM) solutions (e.g., Microsoft Purview RMS, Adobe DRM) control document or media lifecycles via centralized Key Management Servers (KMS) and hardware enclaves~\cite{armtrustzone}. However, IRM frameworks are proprietary, vendor-locked, require persistent network connectivity for license heartbeats, and do not provide an open container format for peer-to-peer exchange. VANISH delivers a lightweight, format-agnostic specification designed for decentralized file transfer without external infrastructure.
 
-To overcome this constraint, Diesburg and Wang~\cite{diesburg2010survey} and Geambasu et al.~\cite{geambasu2011keymon} proposed cryptographic erasure (crypto-shredding): encrypting files with unique keys and discarding the keys upon deletion. VANISH adopts this principle, combining direct inode unlinking for hygiene with hardware keystore key deletion (Tier 2) to neutralize flash remanence.
+\subsection{Secure Deletion on Flash Storage and Crypto-Shredding}
+Legacy sanitization relied on multi-pass sector overwriting on magnetic disks~\cite{gutmann1996secure}. On modern solid-state drives (SSDs) and mobile flash storage (eMMC/UFS), internal Flash Translation Layers (FTL) perform out-of-place writes and wear-leveling~\cite{wei2011reliably, reardon2013sok}. Overwriting a logical block directs writes to new physical blocks, leaving original plaintext pages intact until garbage collection runs. 
 
-\subsection{Mobile Operating System Access Control}
-Mobile platforms isolate applications via mandatory access control and filesystem virtualization. SEAndroid~\cite{smalley2013security, bugiel2012towards} and Scoped Storage mandate that third-party apps access shared media exclusively via \texttt{MediaProvider} and the Storage Access Framework (SAF)~\cite{android_scoped_storage}. While effective against unauthorized snooping, these controls enforce spatial rather than temporal boundaries. VANISH instruments these native storage checkpoints to introduce automated lifecycle management.
+To overcome flash wear-leveling limitations, Diesburg and Wang~\cite{diesburg2010survey} and Reardon et al.~\cite{reardon2013sok} advocated cryptographic erasure (crypto-shredding): encrypting data with unique keys and irrevocably destroying the keys. VANISH adopts this dual-paradigm: direct multi-pass overwriting is reserved for magnetic/loopback devices, whereas on flash media, guaranteed data irrecoverability relies on hardware keystore key deletion (Tier 2).
+
+\subsection{Mobile Operating System Storage Enforcement}
+Mobile platforms isolate applications via mandatory access control and filesystem virtualization. SEAndroid~\cite{smalley2013security, bugiel2012towards} and Scoped Storage mandate that applications access media through \texttt{MediaProvider} and the Storage Access Framework (SAF)~\cite{android_scoped_storage}. While effective at preventing unauthorized inter-app snooping, these controls enforce spatial rather than temporal boundaries. VANISH instruments these native storage checkpoints to introduce automated lifecycle management.
