@@ -11,22 +11,24 @@ Prior research on data expiration spans peer-to-peer systems, cloud assured dele
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}
 \toprule
-\textbf{Paradigm / System} & \textbf{Network Dependency} & \textbf{Storage Scope} & \textbf{OS Native Hook} & \textbf{Format Agnostic} & \textbf{Enforcement / Cryptographic Basis} & \textbf{Sybil / Crawl Immune} \\
+\textbf{Paradigm / System} & \textbf{Network Dependency} & \textbf{Storage Scope} & \textbf{OS Native Hook} & \textbf{Format Agnostic} & \textbf{Enforcement / Cryptographic Basis} & \textbf{Decentralized Key Erasure} \\
 \midrule
 Vanish 2009~\cite{geambasu2009vanish} & Continuous P2P DHT & Distributed Chunks & No (Application Layer) & Yes & Shamir Secret Sharing & No (Vulnerable to Sybil~\cite{wolchok2010defeating}) \\
-FADE 2010~\cite{tang2010fade} & Persistent Cloud Quorum & Cloud Storage Overlay & No & Yes & Policy Key Manager + Cryptographic Erasure & Yes \\
-Commercial DRM / IRM & Persistent License Server & Siloed / Enclave & TEE Enclave Bound & No (Media / Office Only) & Centralized KMS / AES-CTR / PKI & Yes \\
-Messaging Apps (Signal) & Central Cloud Server & App Storage Only & No & No (Chat Attachments) & App Timer + Double Ratchet~\cite{perrin2016doubleratchet} & Yes \\
-Android Scoped Storage & Fully Offline & Filesystem Sandbox & Yes (AOSP) & Yes & POSIX / MAC \& SAF Policy~\cite{smalley2013security, android_scoped_storage} & Yes (No Lifecycle Expiration) \\
+FADE 2010~\cite{tang2010fade} & Persistent Cloud Quorum & Cloud Storage Overlay & No & Yes & Policy Key Manager + Cryptographic Erasure & No (Cloud Quorum Bound) \\
+Commercial DRM / IRM & Persistent License Server & Siloed / Enclave & TEE Enclave Bound & No (Media / Office Only) & Centralized KMS / AES-CTR / PKI & No (Central Server Bound) \\
+Messaging Apps (Signal) & Central Cloud Server & App Storage Only & No & No (Chat Attachments) & App Timer + Double Ratchet~\cite{perrin2016doubleratchet} & No (Sandbox Siloed) \\
+Android Scoped Storage & Fully Offline & Filesystem Sandbox & Yes (AOSP) & Yes & POSIX / MAC \& SAF Policy~\cite{smalley2013security, android_scoped_storage} & No (No Expiration Mechanism) \\
 \midrule
-\textbf{VANISH (This Work)} & \textbf{Fully Offline} & \textbf{Portable (.vfile)} & \textbf{Yes (Linux / AOSP Service)} & \textbf{Yes (Universal)} & \textbf{Ed25519ph + CBOR + AES-GCM + HPKE} & \textbf{Yes (Self-Contained Enclosure)} \\
+\textbf{VANISH (This Work)} & \textbf{Offline Enforcement} & \textbf{Portable (.vfile)} & \textbf{Yes (Linux / AOSP Service)} & \textbf{Yes (Universal)} & \textbf{Ed25519 + CBOR + AES-GCM + HPKE} & \textbf{Yes (Autonomous Keystore Purge)} \\
 \bottomrule
 \end{tabular}%
 }
 \end{table*}
 
 \subsection{Cryptographic and Distributed Data Expiration}
-Radia Perlman~\cite{perlman2005ephemerizer} introduced the Ephemerizer, formalizing assured deletion by encrypting data with ephemeral server keys destroyed upon expiration. Tang et al.~\cite{tang2010fade} extended key-revocation to cloud storage via FADE, using quorum-based key managers. Geambasu et al.~\cite{geambasu2009vanish} proposed Vanish, scattering Shamir secret shares across BitTorrent DHTs. However, Wolchok et al.~\cite{wolchok2010defeating} defeated Vanish using low-cost Sybil crawlers that harvested keyspaces prior to expiration. CleanOS~\cite{tang2012cleanos} explored mobile idle key eviction using remote cloud services. Unlike prior systems, VANISH requires zero P2P network participation and zero cloud dependencies, relying on self-contained signed containers enforced locally by host operating systems.
+Radia Perlman~\cite{perlman2005ephemerizer} introduced the Ephemerizer, formalizing assured deletion by encrypting data with ephemeral server keys destroyed upon expiration. Tang et al.~\cite{tang2010fade} extended key-revocation to cloud storage via FADE, using quorum-based key managers. Geambasu et al.~\cite{geambasu2009vanish} proposed Vanish, scattering Shamir secret shares across BitTorrent DHTs; however, Wolchok et al.~\cite{wolchok2010defeating} defeated Vanish using low-cost Sybil crawlers that harvested keyspaces prior to expiration. CleanOS~\cite{tang2012cleanos} explored mobile idle key eviction using remote cloud services. 
+
+Whereas the Ephemerizer and FADE rely on trusted third-party cloud key managers, VANISH shifts the trust root directly to the recipient's local operating system and hardware keystore, providing an autonomous, serverless trust model.
 
 \subsection{Digital Rights Management and Enterprise IRM}
 Commercial DRM platforms (e.g., Widevine) and Enterprise Information Rights Management (IRM) frameworks (e.g., Microsoft Purview RMS, Adobe DRM) govern file lifecycles via centralized Key Management Servers (KMS) and hardware enclaves~\cite{armtrustzone}. However, IRM systems are proprietary, vendor-locked, require persistent connectivity for license heartbeats, and restrict file formats. VANISH provides an open, format-agnostic specification designed for decentralized, offline peer-to-peer file transfer.

@@ -40,7 +40,7 @@
 
 \begin{document}
 
-\title{VANISH: Design and Implementation of a Cross-Platform, Cryptographically Verifiable Self-Expiring Digital File Protocol}
+\title{VANISH: Design and Implementation of a Cross-Platform, Cryptographically Authenticated Self-Expiring Digital File Protocol}
 
 \author{
 \IEEEauthorblockN{Anonymous Author(s)}
@@ -52,7 +52,7 @@
 \begin{abstract}
 Traditional operating systems treat stored digital files as permanent artifacts. While secure messaging applications offer disappearing messages, their protection is confined to application sandboxes; once an attachment is saved to local storage, it persists indefinitely. Prior academic systems for self-destructing data relied on peer-to-peer distributed hash tables, which were subsequently shown to be vulnerable to low-cost Sybil crawling attacks.
 
-In this paper, we propose \textbf{VANISH}, an open, cross-platform protocol and operating system architecture for cryptographically verifiable, self-expiring digital files. VANISH encapsulates arbitrary file payloads into a self-describing container (\texttt{.vfile}) with Canonical CBOR metadata, Ed25519ph digital signatures, and optional authenticated AES-256-GCM encryption with recipient envelope key wrapping. Host operating systems natively verify container integrity, register expiration deadlines with kernel and framework schedulers, and enforce automated file unlinking and hardware-backed cryptographic key erasure. Our empirical evaluation demonstrates that VANISH introduces a fixed binary framing overhead of only $140$\,bytes ($320$--$429$\,bytes including canonical metadata), verifies a $1$\,MB container in approximately $1.42$\,ms, and provides deterministic access expiration on Android with negligible incremental idle battery consumption ($<0.05\%$ over 24 hours).
+In this paper, we propose \textbf{VANISH}, an open, cross-platform protocol and operating system architecture for cryptographically authenticated, self-expiring digital files. VANISH encapsulates arbitrary file payloads into a self-describing container (\texttt{.vfile}) with Canonical CBOR metadata, Ed25519 digital signatures, and authenticated AES-256-GCM encryption with per-file recipient key encapsulation. Host operating systems natively verify container integrity, register expiration deadlines with kernel and framework schedulers, and enforce automated file unlinking and hardware-backed cryptographic key erasure. Our empirical evaluation demonstrates that VANISH introduces a fixed binary framing overhead of only $140$\,bytes ($320$--$429$\,bytes including canonical metadata), verifies a $1$\,MB container in approximately $1.42$\,ms, and provides deterministic access expiration on Android with negligible incremental idle battery consumption ($<0.05\%$ over 24 hours).
 \end{abstract}
 
 \begin{IEEEkeywords}

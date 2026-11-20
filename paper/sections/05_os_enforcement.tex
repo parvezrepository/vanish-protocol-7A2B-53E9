@@ -17,7 +17,7 @@ Figure~\ref{fig:os_arch} depicts the three-stage OS enforcement pipeline: storag
 On Linux, a systemd daemon (\texttt{vanishd}) manages file lifecycles:
 \begin{enumerate}
     \item \textbf{Kernel Ingestion via \texttt{fanotify}:} Rather than polling filesystems, \texttt{vanishd} listens for \texttt{FAN\_CLOSE\_WRITE} events, receiving file descriptors directly upon container creation.
-    \item \textbf{Verification and Scheduling:} The daemon validates the 32-byte header, parses CBOR manifests, verifies Ed25519ph signatures against pinned keys, and pushes $t_{\text{exp}}$ into an in-memory min-heap.
+    \item \textbf{Verification and Scheduling:} The daemon validates the 32-byte header, parses CBOR manifests, verifies Ed25519 signatures against pinned keys, and pushes $t_{\text{exp}}$ into an in-memory min-heap.
     \item \textbf{Kernel Timer Queue:} The scheduler arms a \texttt{timerfd} monitored via epoll to wake up precisely at $\min(t_{\text{exp}})$, consuming zero CPU cycles when idle.
     \item \textbf{Revocation Execution:} At expiration, \texttt{AUTO\_UNLINK} removes the inode entry. Under \texttt{SECURE\_SHRED}, the daemon performs two-pass block overwriting on magnetic/loopback storage, while invoking keystore key erasure on flash storage before unlinking.
 \end{enumerate}
@@ -29,7 +29,7 @@ Mobile operating systems enforce strict sandboxing (Scoped Storage) and aggressi
 Registered as \texttt{Context.VANISH\_SERVICE}, \texttt{VanishManagerService} runs within \texttt{system\_server} under system UID ($1000$). We instrumented \texttt{ModernMediaScanner} via \texttt{VanishMediaScannerHook} to detect incoming containers. \texttt{VanishDocumentsProvider} exposes an ephemeral virtual root in the native Files app with countdown badges, immediately denying access upon expiration.
 
 \subsubsection{Doze-Resilient Scheduling and Cleanup Latency}
-As a privileged service, \texttt{VanishManagerService} schedules exact RTC wakeups via:
+As a privileged service, \texttt{VanishManagerService} schedules exact RTC wakeups for calendar deadlines ($t_{\text{exp}}$) and elapsed uptime wakeups for relative countdowns ($\Delta t$) via:
 \begin{equation}
 \label{eq:alarm}
 \begin{aligned}

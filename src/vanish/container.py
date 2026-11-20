@@ -157,18 +157,16 @@ class VanishContainer:
     def compute_signing_digest(self) -> bytes:
         """Calculate the cryptographic signing preimage digest.
 
-        Binds the container header (first 26 bytes without variable reserved),
+        Binds the full 32-byte container header (including version, flags, and dimensions),
         the embedded public key, the nonce, the canonical CBOR manifest bytes,
         and the SHA-256 hash of the payload.
         """
         raw_header = self.header.pack()
-        # Bind header metadata excluding volatile reserved padding
-        header_prefix = raw_header[:26]
         manifest_bytes = self.manifest.to_cbor()
         payload_hash = compute_sha256(self.payload)
 
         hasher = io.BytesIO()
-        hasher.write(header_prefix)
+        hasher.write(raw_header)
         hasher.write(self.public_key_bytes)
         hasher.write(self.nonce)
         hasher.write(manifest_bytes)

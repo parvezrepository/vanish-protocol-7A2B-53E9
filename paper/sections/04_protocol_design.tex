@@ -23,37 +23,37 @@ In standard documents, $\Omega_{\text{overhead}}$ averages $320$--$429$\,bytes (
 \subsection{Cryptographic Binding and Key Distribution}
 To prevent tampering with policies or flags, the signature binds a unified cryptographic preimage:
 \begin{equation}
-    \mathcal{M} = \text{Header}_{0:26} \mathbin{\Vert} \text{PubKey} \mathbin{\Vert} \text{Nonce} \mathbin{\Vert} \text{Manifest}_{\text{CBOR}} \mathbin{\Vert} \mathcal{H}(\text{Payload})
+    \mathcal{M} = \text{Header}_{0:32} \mathbin{\Vert} \text{PubKey} \mathbin{\Vert} \text{Nonce} \mathbin{\Vert} \text{Manifest}_{\text{CBOR}} \mathbin{\Vert} \mathcal{H}(\text{Payload})
 \end{equation}
-where $\mathcal{H}$ denotes SHA-256. The preimage binds $\text{Header}_{0:26}$ (magic, version, flags, and segment length descriptors); the remaining 6 bytes ($\text{Header}_{26:32}$) contain reserved alignment padding, omitted to permit backward-compatible platform flags without invalidating existing signatures.
+where $\mathcal{H}$ denotes SHA-256. The preimage binds the entire 32-byte header. Verifiers strictly enforce that the 6 reserved bytes must be zero-filled under version 1; any future architectural extensions require a protocol version increment.
 
-To support high-throughput streaming over large files without buffering entire payloads in memory, we instantiate \textbf{Ed25519ph} (pre-hashed EdDSA, RFC 8032 Section 5.1)~\cite{rfc8032ed25519}:
+Because the payload is pre-digested via $\mathcal{H}(\text{Payload})$, the composite preimage $\mathcal{M}$ is compact ($<500$ bytes). The sender computes standard detached Ed25519 signature $\sigma$:
 \begin{equation}
-    \sigma = \text{Ed25519ph\_Sign}(\text{SK}_{\text{Sender}}, \mathcal{H}(\mathcal{M}))
+    \sigma = \text{Ed25519\_Sign}(\text{SK}_{\text{Sender}}, \mathcal{M})
 \end{equation}
-By pre-digesting payload streams with SHA-256, the verifier validates multi-gigabyte containers in $O(1)$ memory buffer.
+The verifier computes $\mathcal{H}(\text{Payload})$ streaming across disk chunks in $O(1)$ memory buffer, constructs $\mathcal{M}$, and verifies $\sigma$ without circular buffering.
 
-\textbf{Key Distribution via HPKE:} In Tier 2, confidentiality across untrusted channels uses hybrid envelope encryption (RFC 9180 HPKE)~\cite{rfc9180hpke}. The sender generates an ephemeral Content Encryption Key ($K_{\text{CEK}} \leftarrow \mathcal{K}_{\text{AES-256}}$), encrypts the payload, and encapsulates $K_{\text{CEK}}$ under the recipient's public key ($\text{PK}_{\text{Recv}}$):
+\textbf{Key Distribution via HPKE:} In Tier 2, confidentiality across untrusted channels uses hybrid envelope encryption (RFC 9180 HPKE)~\cite{rfc9180hpke}. The recipient device provisions an ephemeral, file-specific keypair $(\text{SK}_{\text{file}}, \text{PK}_{\text{file}})$ within its hardware keystore. The sender generates an ephemeral Content Encryption Key ($K_{\text{CEK}} \leftarrow \mathcal{K}_{\text{AES-256}}$), encrypts the payload, and encapsulates $K_{\text{CEK}}$ under $\text{PK}_{\text{file}}$:
 \begin{equation}
-    C_{\text{key}} = \text{HPKE\_Seal}(\text{PK}_{\text{Recv}}, K_{\text{CEK}})
+    C_{\text{key}} = \text{HPKE\_Seal}(\text{PK}_{\text{file}}, K_{\text{CEK}})
 \end{equation}
-The encapsulated key is placed in the CBOR manifest. Public keys are discovered via verified contact cards, MDM directory profiles, or Key Transparency logs. Unpinned keys trigger an explicit attestation warning. Upon receipt, the recipient daemon un-encapsulates $K_{\text{CEK}}$ into the hardware keystore (ARM TrustZone / TPM 2.0). Volatile buffers holding $K_{\text{CEK}}$ are immediately scrubbed.
+$C_{\text{key}}$ is stored in the CBOR manifest. Public keys are discovered via verified contact cards, MDM directory profiles, or Key Transparency logs. Unpinned keys trigger an explicit attestation warning. Upon receipt, the recipient daemon un-encapsulates $K_{\text{CEK}}$ into the hardware keystore (ARM TrustZone / TPM 2.0). Volatile buffers holding $K_{\text{CEK}}$ are immediately scrubbed, and $\text{SK}_{\text{file}}$ is destroyed upon expiration.
 
 \subsection{Formal Security Reductions}
 \newtheorem{theorem}{Theorem}
 
 \begin{theorem}[Manifest Unforgeability]
-Assuming Ed25519ph is EUF-CMA secure and SHA-256 is collision resistant, no PPT adversary $\mathcal{A}$ without $\text{SK}_{\text{Sender}}$ can forge an altered expiration timestamp $t'_{\text{exp}} > t_{\text{exp}}$ accepted by a verifier pinned to $\text{PK}_{\text{Sender}}$, except with negligible probability $\text{negl}(\lambda)$.
+Assuming Ed25519 is EUF-CMA secure~\cite{brendel2021provable} and SHA-256 is collision resistant, no PPT adversary $\mathcal{A}$ without $\text{SK}_{\text{Sender}}$ can forge an altered expiration timestamp $t'_{\text{exp}} > t_{\text{exp}}$ accepted by a verifier pinned to $\text{PK}_{\text{Sender}}$, except with negligible probability $\text{negl}(\lambda)$.
 \end{theorem}
 
 \begin{IEEEproof}
-Modifying $t_{\text{exp}}$ to $t'_{\text{exp}}$ alters the canonical CBOR serialization, producing preimage $\mathcal{M}' \ne \mathcal{M}$. By collision resistance of SHA-256, finding $\mathcal{H}(\mathcal{M}') = \mathcal{H}(\mathcal{M})$ succeeds with probability $\le \mathbf{Adv}^{\text{CR}}_{\text{SHA256}}(\mathcal{A}) \le \text{negl}(\lambda)$. Producing a valid Ed25519ph signature $\sigma'$ on $\mathcal{H}(\mathcal{M}')$ under $\text{PK}_{\text{Sender}}$ without $\text{SK}_{\text{Sender}}$ reduces directly to the EUF-CMA security of Ed25519ph: $\mathbf{Adv}^{\text{EUF-CMA}}_{\text{Ed25519ph}}(\mathcal{A}) \le \text{negl}(\lambda)$. Thus, $\mathbf{Pr}[\mathcal{A} \text{ wins}] \le \mathbf{Adv}^{\text{CR}}_{\text{SHA256}}(\mathcal{A}) + \mathbf{Adv}^{\text{EUF-CMA}}_{\text{Ed25519ph}}(\mathcal{A}) \le \text{negl}(\lambda)$.
+Modifying $t_{\text{exp}}$ to $t'_{\text{exp}}$ alters the canonical CBOR serialization, producing preimage $\mathcal{M}' \ne \mathcal{M}$. By collision resistance of SHA-256, finding $\mathcal{H}(\text{Payload}') = \mathcal{H}(\text{Payload})$ or colliding $\mathcal{M}'$ succeeds with probability $\le \mathbf{Adv}^{\text{CR}}_{\text{SHA256}}(\mathcal{A}) \le \text{negl}(\lambda)$. Producing a valid Ed25519 signature $\sigma'$ on $\mathcal{M}'$ under $\text{PK}_{\text{Sender}}$ without $\text{SK}_{\text{Sender}}$ reduces directly to the EUF-CMA security of Ed25519: $\mathbf{Adv}^{\text{EUF-CMA}}_{\text{Ed25519}}(\mathcal{A}) \le \text{negl}(\lambda)$. Thus, $\mathbf{Pr}[\mathcal{A} \text{ wins}] \le \mathbf{Adv}^{\text{CR}}_{\text{SHA256}}(\mathcal{A}) + \mathbf{Adv}^{\text{EUF-CMA}}_{\text{Ed25519}}(\mathcal{A}) \le \text{negl}(\lambda)$.
 \end{IEEEproof}
 
-\begin{theorem}[Post-Expiry Secrecy via Cryptographic Erasure]
-In Tier 2, assuming $K_{\text{CEK}}$ was not exfiltrated prior to $t_{\text{exp}}$, volatile session key buffers are zeroized upon decryption, and the hardware keystore purges $K_{\text{CEK}}$ at $t \ge t_{\text{exp}}$, any PPT adversary $\mathcal{A}$ possessing the physical storage medium post-expiry has negligible advantage in recovering the plaintext under the IND-CPA security (ciphertext pseudorandomness) of AES-256-GCM.
+\begin{theorem}[Post-Expiry Secrecy via Cryptographic Key Erasure]
+In Tier 2, assuming the recipient hardware keystore is tamper-resistant (permanently zeroizing $\text{SK}_{\text{file}}$ without leaving unzeroized copies in physical NVRAM or swap), $K_{\text{CEK}}$ was not exfiltrated prior to $t_{\text{exp}}$, and all volatile session keys are zeroized upon decryption, any PPT adversary $\mathcal{A}$ possessing post-expiry storage remnants has negligible advantage in recovering the plaintext under the IND-CPA security of AES-GCM~\cite{mcgrew2004security} and the IND-CCA2 security of HPKE~\cite{rfc9180hpke}.
 \end{theorem}
 
 \begin{IEEEproof}
-At $t \ge t_{\text{exp}}$, the host keystore permanently zeroes $K_{\text{CEK}}$, and volatile RAM buffers were scrubbed upon decryption. An adversary inspecting physical storage remnants observes only ciphertext $C = \text{AES-GCM}(K_{\text{CEK}}, N, P)$ and public parameters $(\text{Header}, \text{Manifest})$. Because $K_{\text{CEK}}$ is uniformly drawn from $\{0, 1\}^{256}$ and permanently non-existent on the device, recovering plaintext $P$ or distinguishing $C$ from random bits reduces to the IND-CPA security of AES-256: $\mathbf{Adv}^{\text{IND-CPA}}_{\text{AES-256}}(\mathcal{A}) \le \text{negl}(\lambda)$.
+At $t \ge t_{\text{exp}}$, the hardware keystore permanently zeroes $\text{SK}_{\text{file}}$, and volatile memory copies of $K_{\text{CEK}}$ are scrubbed. An adversary inspecting physical storage remnants observes only ciphertext $C = \text{AES-GCM}(K_{\text{CEK}}, N, P)$, encapsulated key $C_{\text{key}} = \text{HPKE\_Seal}(\text{PK}_{\text{file}}, K_{\text{CEK}})$, and public parameters $(\text{Header}, \text{Manifest})$. Because $\text{SK}_{\text{file}}$ is destroyed, recovering $K_{\text{CEK}}$ from $C_{\text{key}}$ reduces to breaking the IND-CCA2 security of HPKE: $\mathbf{Adv}^{\text{IND-CCA2}}_{\text{HPKE}}(\mathcal{A}) \le \text{negl}(\lambda)$. With $K_{\text{CEK}}$ inaccessible, distinguishing plaintext $P$ from random bits reduces to the IND-CPA security of AES-GCM: $\mathbf{Adv}^{\text{IND-CPA}}_{\text{AES-GCM}}(\mathcal{A}) \le \text{negl}(\lambda)$. Thus, $\mathbf{Pr}[\mathcal{A} \text{ wins}] \le \mathbf{Adv}^{\text{IND-CCA2}}_{\text{HPKE}}(\mathcal{A}) + \mathbf{Adv}^{\text{IND-CPA}}_{\text{AES-GCM}}(\mathcal{A}) \le \text{negl}(\lambda)$.
 \end{IEEEproof}
