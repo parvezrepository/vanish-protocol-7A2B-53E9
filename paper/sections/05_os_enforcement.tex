@@ -8,7 +8,7 @@ Figure~\ref{fig:os_arch} shows the three-stage OS enforcement pipeline: storage 
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\columnwidth]{figures/fig_os_architecture.pdf}
+\includegraphics[width=0.92\columnwidth]{figures/fig_os_architecture.pdf}
 \caption{VANISH Native Operating System Enforcement Subsystem Architecture.}
 \label{fig:os_arch}
 \end{figure}
@@ -35,10 +35,11 @@ To detect files when they are downloaded, we added \texttt{VanishMediaScannerHoo
 To let users view files without installing third-party apps, we implemented \texttt{VanishDocumentsProvider}. It registers a virtual storage drive in the native Android Files app (DocumentsUI). Users can browse active files with real-time countdown badges, while the provider blocks access once a file expires.
 
 \subsubsection{Power Management in Doze Mode}
-Background loops on Android drain battery and are often killed by the system. \texttt{VanishManagerService} avoids continuous polling by setting exact wakeups using:
-\begin{equation}
-    \texttt{AlarmManager.setExactAndAllowWhileIdle(ELAPSED\_REALTIME\_WAKEUP, \dots)}
-\end{equation}
+Background loops on Android drain battery and are often killed by the system. \texttt{VanishManagerService} avoids continuous polling by setting exact wakeups using the two-stage \texttt{AlarmManager} interface:
+\begin{align}
+    &\texttt{AlarmManager.setExactAndAllowWhileIdle}( \nonumber \\
+    &\quad \texttt{ELAPSED\_REALTIME\_WAKEUP}, t_{\text{wake}}, \text{PendingIntent})
+\end{align}
 This allows the phone processor to stay in deep sleep (Doze mode) until the exact expiration deadline arrives.
 
 \subsubsection{SELinux Access Control}

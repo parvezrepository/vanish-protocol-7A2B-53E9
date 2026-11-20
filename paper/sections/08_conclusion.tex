@@ -1,6 +1,0 @@
-\section{Conclusion}
-\label{sec:conclusion}
-
-In this paper, we presented \textbf{VANISH}, an open protocol and operating system subsystem for verifiable, self-expiring digital files. By combining canonical CBOR metadata, Ed25519 digital signatures, and AES-256-GCM encryption with native operating system storage monitors, VANISH bridges the gap between closed messaging apps and general filesystem storage.
-
-Our implementation—including a desktop Linux daemon (\texttt{vanishd}) and an Android AOSP framework service (\texttt{VanishManagerService})—shows that native file lifecycle management requires minimal storage overhead ($429$\,bytes), verifies files in under $1.5$\,ms per megabyte, and runs on mobile devices with zero idle battery drain. By formalizing threat models across cooperative and adversary settings, VANISH provides a practical, open foundation for digital privacy and automated data expiration.

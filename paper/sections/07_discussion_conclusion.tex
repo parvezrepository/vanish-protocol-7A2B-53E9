@@ -1,0 +1,12 @@
+\section{Discussion and Conclusion}
+\label{sec:conclusion}
+
+\subsection{Flash Memory and Hardware Roots of Trust}
+On modern solid-state drives (SSDs) and mobile flash storage (eMMC and UFS), internal Flash Translation Layers (FTL) perform wear-leveling by directing block overwrites to new physical pages, leaving stale pages intact until garbage collection~\cite{wei2011reliably}. VANISH counters this physical limit through Tier 2 Crypto-Shredding~\cite{diesburg2010survey, geambasu2011keymon}. By encrypting file payloads with AES-256-GCM and maintaining keys exclusively in hardware keystores (ARM TrustZone or TPM 2.0), key deletion at $t \ge t_{\text{exp}}$ renders remaining flash ciphertext mathematically unrecoverable. 
+
+Furthermore, to defend against local root adversaries manipulating system clocks, production deployments can anchor time checkpoints to non-volatile monotonic hardware counters—such as the Replay Protected Memory Block (RPMB) in mobile UFS storage or TPM 2.0 monotonic counters~\cite{tpm20specification}—coupled with authenticated network time (NTS~\cite{rfc8915nts} and Roughtime~\cite{roughtime2018}).
+
+\subsection{Conclusion}
+In this paper, we presented \textbf{VANISH}, an open protocol and operating system subsystem for verifiable, self-expiring digital files. By combining canonical CBOR metadata, Ed25519 digital signatures, and AES-256-GCM encryption with native operating system storage monitors, VANISH bridges the gap between closed messaging apps and general filesystem storage.
+
+Our implementation—including a desktop Linux daemon (\texttt{vanishd}) and an Android AOSP framework service (\texttt{VanishManagerService})—shows that native file lifecycle management requires minimal storage overhead ($429$\,bytes), verifies files in under $1.5$\,ms per megabyte, and runs on mobile devices with zero idle battery drain. By formalizing threat models across cooperative and adversary settings, VANISH provides an open, practical foundation for digital privacy and automated data expiration.
