@@ -1,0 +1,22 @@
+{
+  "Standard ZIP": {
+    "framing_overhead_bytes": 120,
+    "creation_ms": 1.1094099994807038,
+    "extraction_ms": 0.7035799997538561
+  },
+  "TAR.GZ": {
+    "framing_overhead_bytes": 614,
+    "creation_ms": 17.924829999901704,
+    "extraction_ms": 1.584190001085517
+  },
+  "Raw AES-256-GCM": {
+    "framing_overhead_bytes": 28,
+    "creation_ms": 1.440569999613217,
+    "extraction_ms": 1.1252300002524862
+  },
+  "VANISH (.vfile)": {
+    "framing_overhead_bytes": 429,
+    "creation_ms": 6.445940000048722,
+    "extraction_ms": 2.53926999939722
+  }
+}

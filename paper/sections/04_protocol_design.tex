@@ -22,3 +22,25 @@ where $\mathcal{H}$ denotes SHA-256. The signature $\sigma$ is computed as:
     \sigma = \text{Ed25519\_Sign}(\text{SK}_{\text{Issuer}}, \mathcal{H}(\mathcal{M}))
 \end{equation}
 Any post-generation modification to flags, timestamps, or payload data invalidates $\sigma$, resulting in immediate container rejection.
+
+\subsection{Formal Security Guarantees}
+We formalize the security properties of VANISH under standard cryptographic assumptions:
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+
+\begin{theorem}[Manifest \& Header Unforgeability]
+Assuming Ed25519 is Existentially Unforgeable under Chosen Message Attacks (EUF-CMA) and SHA-256 is collision-resistant, no polynomial-time adversary $\mathcal{A}$ without access to $\text{SK}_{\text{Issuer}}$ can construct a forged container $\mathcal{C}'$ with an extended expiry timestamp $t'_{\text{exp}} > t_{\text{exp}}$ that satisfies verification.
+\end{theorem}
+
+\begin{IEEEproof}
+Suppose $\mathcal{A}$ modifies $t_{\text{exp}}$ to $t'_{\text{exp}}$ in $\text{Manifest}_{\text{CBOR}}$. Under the collision resistance of SHA-256, the new preimage digest $\mathcal{H}(\mathcal{M}')$ satisfies $\mathcal{H}(\mathcal{M}') \ne \mathcal{H}(\mathcal{M})$ with probability $1 - 2^{-256}$. For $\mathcal{C}'$ to be accepted, $\mathcal{A}$ must generate a signature $\sigma'$ such that $\text{Ed25519\_Verify}(\text{PK}_{\text{Issuer}}, \sigma', \mathcal{H}(\mathcal{M}')) = \text{True}$. Computing $\sigma'$ without $\text{SK}_{\text{Issuer}}$ implies breaking the EUF-CMA security of Ed25519, contradicting the assumption.
+\end{IEEEproof}
+
+\begin{theorem}[Forward Secrecy via Crypto-Shredding]
+Under Tier 2 (Encrypted Mode), erasure of key $K$ from the OS Keystore at $t \ge t_{\text{exp}}$ ensures that recovery of plaintext $\mathcal{P}$ from raw storage remnants is bounded by the IND-CPA security of AES-256-GCM.
+\end{theorem}
+
+\begin{IEEEproof}
+Let physical storage blocks retain ciphertext $\mathcal{C}$ after unlinking. Decrypting $\mathcal{C}$ requires reconstructing $K$. Because $K$ is randomly drawn from $\{0,1\}^{256}$ and purged via memory zeroization and Keystore deletion, any adversary without $K$ attempting to distinguish $\mathcal{P}$ has advantage $\mathbf{Adv}^{\text{IND-CPA}}_{\text{AES}}(\mathcal{A}) \le \text{negl}(\lambda)$, rendering raw physical forensic reconstruction infeasible.
+\end{IEEEproof}
