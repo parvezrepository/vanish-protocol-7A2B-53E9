@@ -1,0 +1,27 @@
+# ==============================================================================
+# SELinux Policy Definition for VANISH AOSP Lifecycle Subsystem
+# File: system/sepolicy/private/vanish.te
+# ==============================================================================
+
+# Define vanish_service type in service_contexts
+type vanish_service, service_manager_type, system_api_service, system_server_service;
+
+# Allow system_server to add and register the vanish service
+allow system_server vanish_service:service_manager add;
+
+# Allow system_server to find vanish_service
+allow system_server vanish_service:service_manager find;
+
+# Allow client apps and MediaProvider to find and communicate with vanish_service
+allow untrusted_app_all vanish_service:service_manager find;
+allow platform_app vanish_service:service_manager find;
+allow priv_app vanish_service:service_manager find;
+
+# File lifecycle enforcement permissions
+# Allow system_server to unlink and overwrite expired .vfile containers in public media volumes
+allow system_server media_rw_data_file:file { read write unlink getattr open };
+allow system_server download_file:file { read write unlink getattr open };
+
+# Prevent arbitrary deletion outside managed categories (Principle of Least Privilege)
+neverallow system_server system_file:file unlink;
+neverallow system_server vendor_file:file unlink;

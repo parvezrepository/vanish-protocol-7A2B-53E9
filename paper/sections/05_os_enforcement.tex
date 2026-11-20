@@ -1,16 +1,69 @@
 \section{Native Operating System Enforcement}
 \label{sec:os_enforcement}
 
-To eliminate the necessity for receiver-side specialized applications, VANISH designs native integration hooks into core operating system storage subsystems.
+A foundational thesis of the VANISH architecture is that ephemeral file lifecycle management must be enforced by the host operating system rather than relegated to ephemeral messaging app silos or fragile user-space applications. In this section, we present the systems design of our native enforcement architecture across two dominant computing environments: desktop Linux and mobile Android (AOSP).
 
-\subsection{Linux Reference Daemon (\texttt{vanishd})}
-On Linux, our prototype daemon leverages the \texttt{fanotify} API to monitor target storage directories (e.g., \texttt{\textasciitilde/Downloads}, \texttt{/var/spool}). When a \texttt{.vfile} is closed after write (\texttt{FAN\_CLOSE\_WRITE}), the daemon:
+\subsection{Architectural Blueprint}
+Figure~\ref{fig:os_arch} depicts the tripartite OS enforcement pipeline comprising storage interception, cryptographic verification, and scheduled revocation.
+
+\begin{figure}[htbp]
+\centering
+\begin{verbatim}
++-------------------------------------------------------+
+|             User Space / Client Applications          |
+|    (Files by Google, Nautilus, Shell, Web Download)   |
++-------------------------------------------------------+
+                           |
+                           v  Storage Interception
++-------------------------------------------------------+
+|            Kernel / OS Ingestion Layer                |
+|    (Linux fanotify / Android ModernMediaScanner)      |
++-------------------------------------------------------+
+                           |
+                           v  AIDL / IPC
++-------------------------------------------------------+
+|          VANISH Lifecycle Management Daemon           |
+|       (vanishd / AOSP VanishManagerService)           |
+|  - In-Memory Priority Heap Queue (min-heap on t_exp)   |
+|  - Cryptographic Verification & Manifest Parsing      |
+|  - Doze-Resilient AlarmManager / timerfd Scheduler    |
++-------------------------------------------------------+
+                           |
+                           v  t >= t_exp
++-------------------------------------------------------+
+|             Lifecycle Purge & Shred Engine            |
+|  - Multi-pass Cryptographic Overwrite (SECURE_SHRED)  |
+|  - Atomic Filesystem Unlink via System UID            |
++-------------------------------------------------------+
+\end{verbatim}
+\caption{VANISH Native Operating System Enforcement Subsystem.}
+\label{fig:os_arch}
+\end{figure}
+
+\subsection{Desktop Linux Daemon (\texttt{vanishd})}
+On Linux, native enforcement is orchestrated by a lightweight systemd daemon (\texttt{vanishd}). 
 \begin{enumerate}
-    \item Ingests and validates the 32-byte binary header.
-    \item Verifies the Ed25519 signature against trusted keystores.
-    \item Inserts the expiration epoch $t_{\text{exp}}$ into an in-memory priority queue backed by \texttt{timerfd}.
-    \item Upon timer expiration, triggers the designated action: unlinking the file or securely overwriting its blocks with pseudo-random noise before removal.
+    \item \textbf{Kernel Ingestion via \texttt{fanotify}:} Rather than inefficient directory polling, \texttt{vanishd} attaches to filesystem mount points utilizing the kernel \texttt{fanotify} API listening for \texttt{FAN\_CLOSE\_WRITE} events. When an application finishes writing a \texttt{.vfile}, the kernel dispatches a file descriptor directly to \texttt{vanishd}.
+    \item \textbf{Verification \& Scheduling:} The daemon verifies the 32-byte binary header, parses the canonical CBOR manifest, checks the Ed25519 signature against trusted public keys, and enqueues the expiration timestamp $t_{\text{exp}}$ into a thread-safe min-heap.
+    \item \textbf{Kernel Timer Queue:} The scheduler arms an epoll-monitored \texttt{timerfd} with the delta to the earliest upcoming expiration $\min(t_{\text{exp}})$. This design achieves zero CPU utilization during quiescent periods.
+    \item \textbf{Purge Execution:} Upon timer firing, the daemon executes the designated policy. Under \texttt{AUTO\_UNLINK}, the filesystem inode is unlinked. Under \texttt{SECURE\_SHRED}, the physical storage blocks are overwritten twice with cryptographically secure random bytes prior to unlinking, preventing residual sector reconstruction.
 \end{enumerate}
 
-\subsection{Android AOSP Integration}
-Within Android Open Source Project (AOSP), the VANISH subsystem interfaces with \texttt{MediaProvider} and \texttt{StorageManagerService}. Custom MIME type handlers map \texttt{application/x-vanish} directly into the system download index. Background cleanup is registered with the native \texttt{AlarmManager} with exact wakeups, executing file unlinking via system UID permissions.
+\subsection{Mobile Android Integration (AOSP)}
+Mobile operating systems present unique challenges, notably aggressive power management (Android Doze mode) and sandboxed application boundaries (Scoped Storage). We implemented an open-source reference framework patch for the Android Open Source Project (AOSP) Android 14/15:
+
+\subsubsection{System Service (\texttt{VanishManagerService})}
+We introduce a core system service, \texttt{VanishManagerService}, published under \texttt{ServiceManager} as \texttt{Context.VANISH\_SERVICE}. The service exposes an Android Interface Definition Language (AIDL) contract, \texttt{IVanishManager}, allowing system components to coordinate file lifecycles.
+
+\subsubsection{Storage Access Framework (SAF) Hook}
+To ensure backward compatibility without modifying third-party applications, we implemented \texttt{VanishDocumentsProvider}. This component registers a virtual storage root in the Android DocumentsUI (the native Files app). When a user browses downloads, the provider queries \texttt{IVanishManager}, annotates time-bounded containers with active countdown badges, and dynamically denies descriptor opening once $t \ge t_{\text{exp}}$.
+
+\subsubsection{Doze-Resilient Power Management}
+Traditional continuous background daemon loops trigger Android battery health warnings and process termination. \texttt{VanishManagerService} eliminates background polling by scheduling wakeups via:
+\begin{equation}
+    \texttt{AlarmManager.setExactAndAllowWhileIdle(ELAPSED\_REALTIME\_WAKEUP, \dots)}
+\end{equation}
+This allows the application processor to enter deep low-power sleep states, waking only for sub-millisecond intervals precisely when an expiration deadline is reached.
+
+\subsubsection{SELinux Security Architecture}
+To adhere to the principle of least privilege, we engineered a dedicated SELinux policy (\texttt{vanish.te}). The policy grants the \texttt{system\_server} permission to unlink and overwrite files strictly within target public download volumes (\texttt{media\_rw\_data\_file} and \texttt{download\_file}), while strictly prohibiting unlinking across core system partitions (\texttt{neverallow system\_server system\_file:file unlink}).
