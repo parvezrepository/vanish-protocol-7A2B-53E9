@@ -6,25 +6,25 @@ To define operational guarantees and security boundaries, we formalize our adver
 \subsection{Adversary Model}
 We assume a computationally bounded polynomial-time adversary $\mathcal{A}$ attempting:
 \begin{enumerate}
-    \item \textbf{Network Interception:} $\mathcal{A}$ observes, replays, or tampers with \texttt{.vfile} containers in transit across untrusted communication channels.
-    \item \textbf{Manifest Tampering:} $\mathcal{A}$ alters storage bytes—such as extending expiration timestamp $t_{\text{exp}}$ or toggling policy flags—to prevent automatic file expiration.
+    \item \textbf{Network Interception:} $\mathcal{A}$ observes, replays, or tampers with containers in transit across untrusted communication channels.
+    \item \textbf{Manifest Tampering:} $\mathcal{A}$ alters storage bytes (e.g., extending expiration $t_{\text{exp}}$ or toggling flags) to bypass file expiration.
     \item \textbf{Clock Rollback:} A local user $\mathcal{A}$ manipulates the system wall clock backward to trick the daemon into treating expired files as active.
     \item \textbf{Forensic Drive Carving:} After expiration ($t \ge t_{\text{exp}}$), $\mathcal{A}$ executes low-level logical or physical flash block carving to reconstruct discarded data~\cite{reardon2013sok}.
 \end{enumerate}
 
 \subsection{Assumptions and Trust Anchors}
-We assume the receiving OS kernel enforces standard process isolation and access control policies (POSIX and SEAndroid~\cite{smalley2013security}). Standard cryptographic primitives are secure: Ed25519 signatures satisfy EUF-CMA security~\cite{rfc8032ed25519}, SHA-256 is collision resistant, and AES-256-GCM satisfies IND-CPA and INT-CTXT security~\cite{dworkin2007sp80038d}.
+We assume the receiving OS kernel enforces standard process isolation and access control (POSIX and SEAndroid~\cite{smalley2013security}). Cryptographic primitives are standard: Ed25519ph satisfies EUF-CMA security~\cite{rfc8032ed25519}, SHA-256 is collision resistant, and AES-256-GCM satisfies IND-CPA and INT-CTXT security~\cite{dworkin2007sp80038d}.
 
-\textbf{Trust Anchor Specification:} Self-signed or unpinned keys embedded in a container do not imply authorization. Receiving operating systems maintain a local Trust Anchor Store (\texttt{/etc/vanish/trusted\_keys} on Linux, or the hardware-backed Android KeyStore / Enterprise MDM pool). Verification requires matching the embedded Ed25519 public key fingerprint against this local trust store; unpinned containers require explicit interactive user attestation.
+\textbf{Trust Anchor Specification:} Self-signed or unpinned keys embedded in a container do not imply authorization. Receiving operating systems maintain a local Trust Anchor Store (\texttt{/etc/vanish/trusted\_keys} on Linux, or the hardware-backed Android KeyStore / Enterprise MDM pool). Verification requires matching the embedded Ed25519 public key fingerprint against this store; unpinned containers require explicit interactive user attestation.
 
-\textbf{Key Distribution Assumption:} In encrypted workflows (Tier 2), the sender encapsulates the symmetric Content Encryption Key ($K_{\text{CEK}}$) under the recipient's public key using RFC 9180 HPKE~\cite{rfc9180hpke}. The recipient OS manages the corresponding private key within a hardware Secure Element (ARM TrustZone or TPM 2.0), and $K_{\text{CEK}}$ is zeroized in volatile memory immediately after use and purged from the keystore upon expiration.
+\textbf{Key Distribution Assumption:} In encrypted workflows (Tier 2), the sender encapsulates the symmetric Content Encryption Key ($K_{\text{CEK}}$) under the recipient's public key using RFC 9180 HPKE~\cite{rfc9180hpke}. The recipient OS manages the corresponding private key within a hardware Secure Element (ARM TrustZone or TPM 2.0). $K_{\text{CEK}}$ is zeroized in volatile memory immediately after use and purged from the keystore upon expiration.
 
 \subsection{Operational Security Tiers}
 VANISH provides three operational tiers balancing security and resource constraints:
 \begin{itemize}
-    \item \textbf{Tier 1: Cooperative Hygiene (Consumer / Enterprise):} Targets automated compliance (e.g., GDPR Art. 17) where endpoints run benign software. The OS daemon verifies the signed manifest, tracks deadlines, and unlinks files at $t \ge t_{\text{exp}}$.
+    \item \textbf{Tier 1: Cooperative Hygiene:} Targets automated compliance (GDPR Art. 17) on benign endpoints. The OS daemon verifies the signed manifest, tracks deadlines, and unlinks files at $t \ge t_{\text{exp}}$.
     \item \textbf{Tier 2: OS-Sandboxed Crypto-Shredding:} For confidential documents on flash media (where FTL wear-leveling bypasses sector overwrites~\cite{wei2011reliably}), payloads are encrypted with AES-256-GCM. $K_{\text{CEK}}$ is bound to the hardware keystore (ARM TrustZone~\cite{armtrustzone} or TPM 2.0~\cite{tpm20specification}). At $t \ge t_{\text{exp}}$, the OS zeros volatile key buffers and permanently purges $K_{\text{CEK}}$ from the keystore, rendering flash ciphertext computationally unrecoverable.
-    \item \textbf{Tier 3: Hardware Monotonic Protection:} In offline settings where network time (NTS~\cite{rfc8915nts}, Roughtime~\cite{roughtime2018}) is unreachable, rollback is prevented via non-decrementable hardware counters (eMMC/UFS RPMB or TPM 2.0 NV counters~\cite{tpm20specification}). The OS writes a signed tuple $(\mathcal{C}_{\text{hw}}, t_{\text{last}})$ to the RPMB; any wall-clock regression ($t_{\text{current}} < t_{\text{last}}$) triggers an offline tampering alarm. Relative time-to-live policies anchor to continuous hardware uptime ticks (\texttt{CLOCK\_BOOTTIME}), immune to manual date adjustments.
+    \item \textbf{Tier 3: Hardware Monotonic Protection:} In offline settings where network time (NTS~\cite{rfc8915nts}, Roughtime~\cite{roughtime2018}) is unreachable, rollback is prevented via non-decrementable hardware counters (eMMC/UFS RPMB or TPM 2.0 NV counters~\cite{tpm20specification}). The OS writes signed tuples $(\mathcal{C}_{\text{hw}}, t_{\text{last}})$ to the RPMB; any wall-clock regression triggers an offline tampering alarm. Relative time-to-live policies anchor to continuous hardware uptime ticks (\texttt{CLOCK\_BOOTTIME}).
 \end{itemize}
 
 \subsection{System Boundaries}
