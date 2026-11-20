@@ -8,7 +8,7 @@ Figure~\ref{fig:os_arch} depicts the three-stage OS enforcement pipeline: storag
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.68\columnwidth]{figures/fig_os_architecture.pdf}
+\includegraphics[width=0.65\columnwidth]{figures/fig_os_architecture.pdf}
 \caption{VANISH Native Operating System Enforcement Subsystem Architecture.}
 \label{fig:os_arch}
 \end{figure}
@@ -29,7 +29,7 @@ Mobile operating systems enforce strict sandboxing (Scoped Storage) and aggressi
 Registered as \texttt{Context.VANISH\_SERVICE}, \texttt{VanishManagerService} runs within \texttt{system\_server} under system UID ($1000$). We instrumented \texttt{ModernMediaScanner} via \texttt{VanishMediaScannerHook} to detect incoming containers. \texttt{VanishDocumentsProvider} exposes an ephemeral virtual root in the native Files app with countdown badges, immediately denying access upon expiration.
 
 \subsubsection{Doze-Resilient Scheduling and Cleanup Latency}
-As a privileged service, \texttt{VanishManagerService} schedules exact RTC wakeups for calendar deadlines ($t_{\text{exp}}$) and elapsed uptime wakeups for relative countdowns ($\Delta t$) via:
+As a privileged service, \texttt{VanishManagerService} schedules exact RTC wakeups for calendar deadlines ($t_{\text{exp}}$) via \texttt{AlarmManager.RTC\_WAKEUP}. For relative countdowns ($\Delta t$), it arms \texttt{ELAPSED\_REALTIME\_WAKEUP}:
 \begin{equation}
 \label{eq:alarm}
 \begin{aligned}
@@ -37,8 +37,7 @@ As a privileged service, \texttt{VanishManagerService} schedules exact RTC wakeu
     & \quad \mathtt{ELAPSED\_REALTIME\_WAKEUP}, t_{\text{wake}}, \mathtt{pi})
 \end{aligned}
 \end{equation}
-
-Access expiration is instantaneous ($0$\,s delay at $t \ge t_{\text{exp}}$). Across 500 test deadlines under deep Doze, physical block cleanup latency ($\Delta t = t_{\text{purge}} - t_{\text{exp}}$) yielded a median of $0.38$\,s, mean of $0.42$\,s, 95th percentile of $1.15$\,s, and maximum delay of $2.10$\,s.
+An \texttt{ACTION\_TIME\_CHANGED} broadcast receiver dynamically re-arms alarms upon manual clock adjustments. Access expiration is instantaneous ($0$\,s delay at $t \ge t_{\text{exp}}$). Across 500 test deadlines under deep Doze, physical block cleanup latency ($\Delta t = t_{\text{purge}} - t_{\text{exp}}$) yielded a median of $0.38$\,s, mean of $0.42$\,s, 95th percentile of $1.15$\,s, and maximum delay of $2.10$\,s.
 
 \subsubsection{Deployment Scope and SELinux Access Control}
-VANISH's AOSP integration targets Enterprise MDM fleets (Device Owner mode), hardened OEM distributions (e.g., GrapheneOS, Samsung Knox), and upstream platform standardization. Policy \texttt{vanish.te}~\cite{smalley2013security} permits \texttt{system\_server} to modify files only within download directories (\texttt{media\_rw\_data\_file}) while strictly forbidding deletion in system partitions (\texttt{neverallow system\_server system\_file:file unlink}).
+VANISH's AOSP integration targets Enterprise MDM fleets (Device Owner mode), hardened OEM distributions (e.g., GrapheneOS, Samsung Knox), and upstream platform standardization. Our open-source SELinux policy \texttt{vanish.te} permits \texttt{system\_server} to modify files only within download directories (\texttt{media\_rw\_data\_file}) while strictly forbidding deletion in system partitions (\texttt{neverallow system\_server system\_file:file unlink}).
