@@ -8,7 +8,7 @@ Figure~\ref{fig:os_arch} depicts the three-stage OS enforcement pipeline: storag
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/fig_os_architecture.pdf}
+\includegraphics[width=0.85\columnwidth]{figures/fig_os_architecture.pdf}
 \caption{VANISH Native Operating System Enforcement Subsystem Architecture.}
 \label{fig:os_arch}
 \end{figure}
@@ -19,7 +19,7 @@ On Linux, a systemd daemon (\texttt{vanishd}) executes lifecycle enforcement:
     \item \textbf{Kernel Ingestion via \texttt{fanotify}:} Listening for \texttt{FAN\_CLOSE\_WRITE} events, \texttt{vanishd} receives file descriptors upon container creation without filesystem polling.
     \item \textbf{Verification and Scheduling:} The daemon validates the 32-byte header, parses CBOR manifests, verifies Ed25519 signatures, and pushes $t_{\text{exp}}$ into an in-memory min-heap.
     \item \textbf{Kernel Timer Queue:} The scheduler arms a \texttt{timerfd} monitored via epoll to wake at $\min(t_{\text{exp}})$, consuming zero CPU cycles while idle.
-    \item \textbf{Revocation Execution:} At expiration, \texttt{AUTO\_UNLINK} removes the inode. Under \texttt{SECURE\_SHRED}, the daemon performs two-pass block overwriting on magnetic/loopback storage, and executes keystore key erasure on flash storage before unlinking.
+    \item \textbf{Revocation Execution:} At expiration, \texttt{AUTO\_UNLINK} removes the inode. Under \texttt{SECURE\_SHRED}, the daemon performs PRNG-based multi-pass overwriting (zero/random fill) on magnetic/loopback storage, and executes keystore key erasure on flash storage before unlinking.
 \end{enumerate}
 
 \subsection{Android AOSP Integration}

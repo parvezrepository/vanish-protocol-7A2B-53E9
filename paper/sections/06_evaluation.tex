@@ -37,8 +37,8 @@ We measured execution time for packing (unencrypted and AES-256-GCM encrypted) a
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/fig_latency_vs_size.pdf}
-\caption{Processing latency vs payload size (log-log scale). Small files ($\le 100$\,KB) process in $\le 1.12$\,ms; a $20$\,MB payload encrypts in $46.5$\,ms.}
+\includegraphics[width=0.85\columnwidth]{figures/fig_latency_vs_size.pdf}
+\caption{Processing latency vs payload size (log-log scale). Small files ($\le 100$\,KB) process in $\le 1.12$\,ms; a $20$\,MB payload encrypts in $46.49$\,ms.}
 \label{fig:latency}
 \end{figure}
 
@@ -49,7 +49,7 @@ We isolated format overhead for an identical $1$\,MB payload against three uncom
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/fig_comparative_baseline.pdf}
+\includegraphics[width=0.85\columnwidth]{figures/fig_comparative_baseline.pdf}
 \caption{Comparative performance for 1\,MB payload: VANISH vs Raw AES-256-GCM, Standard TAR, and Signed Envelope.}
 \label{fig:comparative}
 \end{figure}
@@ -61,7 +61,7 @@ We isolated each verification sub-component on a $1$\,MB container (Figure~\ref{
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.58\columnwidth]{figures/fig_verification_breakdown.pdf}
+\includegraphics[width=0.85\columnwidth]{figures/fig_verification_breakdown.pdf}
 \caption{Micro-benchmark breakdown of verification sub-components for a $1$\,MB container.}
 \label{fig:breakdown}
 \end{figure}
