@@ -85,8 +85,8 @@ VANISH/
 
 ```bash
 # Clone the repository
-git clone https://github.com/parvezrepository/VANISH-Design-and-Implementation-of-a-Cross-Platform.git
-cd VANISH-Design-and-Implementation-of-a-Cross-Platform
+git clone https://anonymous.4open.science/r/vanish-protocol-7A2B-53E9
+cd /vanish-protocol-7A2B-53E9
 
 # Create virtual environment and install
 python -m venv .venv
