@@ -16,7 +16,7 @@ Figure~\ref{fig:os_arch} depicts the three-stage OS enforcement pipeline: storag
 \subsection{Desktop Linux Daemon (\texttt{vanishd})}
 On Linux, a systemd daemon (\texttt{vanishd}) executes lifecycle enforcement:
 \begin{enumerate}
-    \item \textbf{Kernel Ingestion via \texttt{fanotify}:} Listening for \texttt{FAN\_CLOSE\_WRITE} events, \texttt{vanishd} receives file descriptors upon container creation without filesystem polling.
+    \item \textbf{Kernel Ingestion via \texttt{fanotify}:} Listening for \texttt{FAN\_CLOSE\_WRITE} events, \texttt{vanishd} receives file descriptors upon container creation without polling. Because payloads are stored as AES-256-GCM ciphertext at rest, premature concurrent reads yield zero plaintext; for strict environments, \texttt{vanishd} supports \texttt{FAN\_OPEN\_PERM} synchronous access gating.
     \item \textbf{Verification and Scheduling:} The daemon validates the 32-byte header, parses CBOR manifests, verifies Ed25519 signatures, and pushes $t_{\text{exp}}$ into an in-memory min-heap.
     \item \textbf{Kernel Timer Queue:} The scheduler arms a \texttt{timerfd} monitored via epoll to wake at $\min(t_{\text{exp}})$, consuming zero CPU cycles while idle.
     \item \textbf{Revocation Execution:} At expiration, \texttt{AUTO\_UNLINK} removes the inode. Under \texttt{SECURE\_SHRED}, the daemon performs PRNG-based multi-pass overwriting (zero/random fill) on magnetic/loopback storage, and executes keystore key erasure on flash storage before unlinking.
